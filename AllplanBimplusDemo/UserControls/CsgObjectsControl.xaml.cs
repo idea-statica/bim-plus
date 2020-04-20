@@ -33,6 +33,7 @@ using IdeaRS.OpenModel.Model;
 using IdeaRS.OpenModel.Result;
 using IOM.SteelFrame;
 using Point = System.Drawing.Point;
+using IdeaStatiCa.Plugin;
 
 // ReSharper disable IdentifierTypo
 // ReSharper disable RedundantExtendsListEntry
@@ -1111,6 +1112,41 @@ namespace AllplanBimplusDemo.UserControls
             }
         }
 
-        #endregion button events
+    private void RunIdeaStatiCaCCM_Click(object sender, RoutedEventArgs e)
+    {
+      RunIdeaStaticaCCM(null);
     }
+
+    public void RunIdeaStaticaCCM(object param)
+    {
+      IBIMPluginHosting feaAppHosting;
+
+      var factory = new PluginFactory(new IdeaHistoryLog());
+      feaAppHosting = new BIMPluginHosting(factory);
+      //feaAppHosting.AppStatusChanged += new ISEventHandler(IdeaStaticAppStatusChanged);
+      var id = System.Diagnostics.Process.GetCurrentProcess().Id.ToString();
+
+      //ProjectDir = Path.Combine(WorkingDirectory, ProjectName);
+      //if (!Directory.Exists(ProjectDir))
+      //{
+      //  Directory.CreateDirectory(ProjectDir);
+      //}
+
+      //var ideaStatiCaProjectDir = Path.Combine(ProjectDir, "IdeaStatiCa-" + ProjectName);
+      //if (!Directory.Exists(ideaStatiCaProjectDir))
+      //{
+      //  Directory.CreateDirectory(ideaStatiCaProjectDir);
+      //}
+
+      //Add(string.Format("Starting FEAPluginHosting clientTd = {0}", id));
+
+      string ideaStatiCaProjectDir = "";
+
+      feaAppHosting.RunAsync(id, ideaStatiCaProjectDir);
+
+
+    }
+
+    #endregion button events
+  }
 }

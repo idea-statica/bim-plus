@@ -99,6 +99,8 @@
     </ApplicationDefinition>
     <Compile Include="Classes\ApplicationSettings.cs" />
     <Compile Include="Classes\ExtensionsClass.cs" />
+    <Compile Include="Classes\IdeaCCM.cs" />
+    <Compile Include="Classes\IdeaPluginFactory.cs" />
     <Compile Include="Classes\MessageBoxHelper.cs" />
     <Compile Include="Classes\TraceCodeTime.cs" />
     <Compile Include="Classes\WpfConverter.cs" />
