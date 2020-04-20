@@ -5,36 +5,39 @@ using System.Text;
 using System.Threading.Tasks;
 using IdeaStatiCa.Plugin;
 using System.IO;
+using BimPlus.Client.Integration;
 
 namespace AllplanBimplusDemo.Classes
 {
-		public interface IHistoryLog
+	public interface IHistoryLog
+	{
+		void Add(string action);
+	}
+
+	public class PluginFactory : IBIMPluginFactory
+	{
+		private readonly IntegrationBase _integrationBase;
+		private IHistoryLog log;
+
+		public PluginFactory(IHistoryLog log, IntegrationBase intBase)
 		{
-			void Add(string action);
+			this.log = log;
+			this._integrationBase = intBase;
 		}
 
-		public class PluginFactory : IBIMPluginFactory
+		public string FeaAppName => "BimPlus";
+
+		public IApplicationBIM Create()
 		{
-			private IHistoryLog log;
+			return new IdeaCCM(_integrationBase);
+		}
 
-			public PluginFactory(IHistoryLog log)
+		public string IdeaStaticaAppPath
+		{
+			get
 			{
-				this.log = log;
-			}
-
-			public string FeaAppName => "BIM Plus";
-
-			public IApplicationBIM Create()
-			{
-				return new IdeaCCM();
-			}
-
-			public string IdeaStaticaAppPath
-			{
-				get
-				{
-					return "path to idea install";
-				}
+				return "D:\\Program Files\\IDEA StatiCa\\StatiCa 20.0\\IdeaCodeCheck.exe";
 			}
 		}
 	}
+}
