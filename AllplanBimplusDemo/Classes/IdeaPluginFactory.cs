@@ -1,15 +1,21 @@
-﻿using BimPlus.Client.Integration;
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using IdeaStatiCa.Plugin;
+using System.IO;
+using BimPlus.Client.Integration;
 
 namespace AllplanBimplusDemo.Classes
 {
 	public interface IHistoryLog
-		{
-			void Add(string action);
-		}
+	{
+		void Add(string action);
+	}
 
-		public class PluginFactory : IBIMPluginFactory
-		{
+	public class PluginFactory : IBIMPluginFactory
+	{
 		private readonly IntegrationBase _integrationBase;
 		private IHistoryLog log;
 
@@ -27,11 +33,12 @@ namespace AllplanBimplusDemo.Classes
 		}
 
 		public string IdeaStaticaAppPath
+		{
+			get
 			{
-				get
-				{
-					return AllplanBimplusDemo.Properties.Settings.Default.IdeaStatiCaCCM;
-				}
+				return @"C:\Users\pavel.vadura\Work\deve_13\_Sources\bin\Debug\IdeaCodeCheck.exe";
+				//return "D:\\Program Files\\IDEA StatiCa\\StatiCa 20.0\\IdeaCodeCheck.exe";
 			}
 		}
 	}
+}
