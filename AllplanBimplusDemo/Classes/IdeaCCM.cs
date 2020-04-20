@@ -18,7 +18,7 @@ namespace AllplanBimplusDemo.Classes
 
 	public class IdeaCCM : ApplicationBIM
 	{
-		protected override string ApplicationName => throw new NotImplementedException();
+		protected override string ApplicationName => "bimplus";
 
 		public override void ActivateInBIM(List<BIMItemId> items)
 		{

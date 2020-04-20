@@ -49,6 +49,7 @@ namespace AllplanBimplusDemo.UserControls
     {
         public CsgObjectsControl()
         {
+            ideaController = new IdeaStatiCaController();
             InitializeComponent();
             DataContext = this;
         }
@@ -60,9 +61,11 @@ namespace AllplanBimplusDemo.UserControls
 
         private WebViewer _webViewer;
 
-        #endregion private member
+        private IdeaStatiCaController ideaController;
 
-        #region properties
+    #endregion private member
+
+    #region properties
 
         private bool _buttonsEnabled;
 
@@ -1114,7 +1117,9 @@ namespace AllplanBimplusDemo.UserControls
 
     private void RunIdeaStatiCaCCM_Click(object sender, RoutedEventArgs e)
     {
-      RunIdeaStaticaCCM(null);
+      ideaController.RunIdeaStaticaCCM(null);
+
+      //RunIdeaStaticaCCM(null);
     }
 
     public void RunIdeaStaticaCCM(object param)

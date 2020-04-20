@@ -1,14 +1,8 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using IdeaStatiCa.Plugin;
-using System.IO;
+﻿using IdeaStatiCa.Plugin;
 
 namespace AllplanBimplusDemo.Classes
 {
-		public interface IHistoryLog
+	public interface IHistoryLog
 		{
 			void Add(string action);
 		}
@@ -33,7 +27,7 @@ namespace AllplanBimplusDemo.Classes
 			{
 				get
 				{
-					return "path to idea install";
+					return AllplanBimplusDemo.Properties.Settings.Default.IdeaStatiCaCCM;
 				}
 			}
 		}

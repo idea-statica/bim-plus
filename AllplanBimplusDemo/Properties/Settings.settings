@@ -1,7 +1,12 @@
 ﻿<?xml version='1.0' encoding='utf-8'?>
-<SettingsFile xmlns="uri:settings" CurrentProfile="(Default)">
-  <Profiles>
-    <Profile Name="(Default)" />
-  </Profiles>
-  <Settings />
+<SettingsFile xmlns="http://schemas.microsoft.com/VisualStudio/2004/01/settings" CurrentProfile="(Default)" GeneratedClassNamespace="AllplanBimplusDemo.Properties" GeneratedClassName="Settings">
+  <Profiles />
+  <Settings>
+    <Setting Name="IdeaStatiCaCCM" Type="System.String" Scope="Application">
+      <Value Profile="(Default)">C:\idea_deve\release_20\_Sources\bin\Debug\IdeaCodeCheck.exe</Value>
+    </Setting>
+    <Setting Name="IdeaDefaultWorkingDir" Type="System.String" Scope="User">
+      <Value Profile="(Default)">D:\IdeaStatiCa</Value>
+    </Setting>
+  </Settings>
 </SettingsFile>
