@@ -22,5 +22,26 @@ namespace AllplanBimplusDemo.Properties {
                 return defaultInstance;
             }
         }
+        
+        [global::System.Configuration.ApplicationScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("C:\\Program Files\\IDEA StatiCa\\StatiCa 20.0\\IdeaCodeCheck.exe")]
+        public string IdeaStatiCaCCM {
+            get {
+                return ((string)(this["IdeaStatiCaCCM"]));
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("D:\\IdeaStatiCa")]
+        public string IdeaDefaultWorkingDir {
+            get {
+                return ((string)(this["IdeaDefaultWorkingDir"]));
+            }
+            set {
+                this["IdeaDefaultWorkingDir"] = value;
+            }
+        }
     }
 }
