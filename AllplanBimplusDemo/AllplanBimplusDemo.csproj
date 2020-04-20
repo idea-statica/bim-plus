@@ -70,8 +70,11 @@
       <SpecificVersion>False</SpecificVersion>
       <HintPath>..\SDK\BimPlus.Sdk.Utilities.dll</HintPath>
     </Reference>
-    <Reference Include="IdeaRS.OpenModel, Version=10.1.0.2, Culture=neutral, PublicKeyToken=b195254c3273d5c1, processorArchitecture=MSIL">
-      <HintPath>packages\IdeaStatiCa.OpenModel.10.1.0.2\lib\net40\IdeaRS.OpenModel.dll</HintPath>
+    <Reference Include="IdeaRS.OpenModel, Version=20.0.3.0, Culture=neutral, PublicKeyToken=b195254c3273d5c1, processorArchitecture=MSIL">
+      <HintPath>packages\IdeaStatiCa.OpenModel.20.0.3\lib\net45\IdeaRS.OpenModel.dll</HintPath>
+    </Reference>
+    <Reference Include="IdeaStatiCa.Plugin, Version=20.0.13.0, Culture=neutral, PublicKeyToken=b195254c3273d5c1, processorArchitecture=MSIL">
+      <HintPath>packages\IdeaStatiCa.Plugin.20.0.13\lib\net48\IdeaStatiCa.Plugin.dll</HintPath>
     </Reference>
     <Reference Include="Newtonsoft.Json, Version=12.0.0.0, Culture=neutral, PublicKeyToken=30ad4fe6b2a6aeed, processorArchitecture=MSIL">
       <HintPath>packages\Newtonsoft.Json.12.0.2\lib\net45\Newtonsoft.Json.dll</HintPath>
@@ -83,6 +86,7 @@
     <Reference Include="System" />
     <Reference Include="System.Data" />
     <Reference Include="System.Drawing" />
+    <Reference Include="System.ServiceModel" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
     <Reference Include="Microsoft.CSharp" />
@@ -236,7 +240,6 @@
       <DependentUpon>ProgressWindow.cs</DependentUpon>
     </EmbeddedResource>
     <None Include="App.manifest" />
-    <None Include="packages.config" />
     <None Include="Properties\Settings.settings">
       <Generator>SettingsSingleFileGenerator</Generator>
       <LastGenOutput>Settings.Designer.cs</LastGenOutput>
@@ -252,6 +255,14 @@
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Resources\BimplusIcon.ico" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="IdeaStatiCa.Plugin">
+      <Version>20.0.13</Version>
+    </PackageReference>
+    <PackageReference Include="Newtonsoft.Json">
+      <Version>12.0.3</Version>
+    </PackageReference>
   </ItemGroup>
   <Import Project="..\IdeaStatiCa.Codes\IdeaStatiCa.Codes.projitems" Label="Shared" />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -50,3 +50,7 @@ _ReSharper*/
 #Temporary files
 *~
 *.swp
+
+packages/
+
+
