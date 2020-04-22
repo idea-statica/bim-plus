@@ -11,6 +11,7 @@ using BimPlus.Client.Integration;
 using BimPlus.Sdk.Data.DbCore;
 using BimPlus.Sdk.Data.DbCore.Analysis;
 using BimPlus.Sdk.Data.DbCore.Steel;
+using BimPlus.Sdk.Data.DbCore.Connection;
 using BimPlus.Sdk.Data.DbCore.Structure;
 using BimPlus.Sdk.Utilities.V2;
 using IdeaRS.OpenModel.CrossSection;
@@ -21,6 +22,7 @@ using System.IO;
 using IdeaRS.OpenModel.Material;
 using IdeaRS.OpenModel.Result;
 using IdeaRS.OpenModel.Message;
+using WM = System.Windows.Media.Media3D;
 
 namespace AllplanBimplusDemo.Classes
 {
@@ -34,15 +36,17 @@ namespace AllplanBimplusDemo.Classes
     public class IdeaCCM : ApplicationBIM
     {
         private readonly IntegrationBase _integrationBase;
-        private List<Guid> selectedIds;
         private List<DtObject> _selectedObjects;
+
+        public static string CrossSectionAttributeId = "32b57db0-f4a1-49e7-ab8b-0d81f0bf8684";
+        public static string MaterialAttributeId = "f2d74244-feb2-45e3-b87b-07ef37bb7174";
+        public static string RotationAttributeId = "e47e1bcc-7f14-4f91-9222-17b8fb15bcdc";
 
         public IdeaCCM(IntegrationBase integrationBase)
         {
             this._integrationBase = integrationBase;
             _integrationBase.EventHandlerCore.ObjectSelected += EventHandlerCore_ObjectSelected;
             // TODO missing _integrationBase.EventHandlerCore.ObjectSelected += EventHandlerCore_ObjectSelected in destructor
-            selectedIds = new List<Guid>();
             _selectedObjects = new List<DtObject>();
         }
 
@@ -103,7 +107,7 @@ namespace AllplanBimplusDemo.Classes
         public override void ActivateInBIM(List<BIMItemId> items)
         {
         }
-        
+
         protected void AddBeam(ElementAssembly beam, OpenModel openModel)
         {
 
@@ -141,46 +145,130 @@ namespace AllplanBimplusDemo.Classes
             return Math.Abs(leftValue - rightValue) <= tolerance;
         }
 
+        public static bool IsZero (double value, double tolerance = 1e-9)
+        {
+            return Math.Abs(value) < tolerance;
+        }
 
+        public static bool IsGreater(double leftValue, double rightValue, double tolerance = 1e-10)
+        {
+            return (leftValue - rightValue) >= tolerance;
+        }
+
+        public static void GetAngles(WM.Vector3D dirVect, out double alpha, out double beta)
+        {
+            const double precision = 1e-6;
+            dirVect.Normalize();
+
+            bool isXZero = IsZero(dirVect.X, precision);
+            bool isYZero = IsZero(dirVect.Y, precision);
+            bool isZZero = IsZero(dirVect.Z, precision);
+
+            if (isYZero && isXZero)
+            {
+                alpha = 0.0;
+                if (dirVect.Z > 0)
+                {
+                    beta = Math.PI / 2;
+                }
+                else
+                {
+                    beta = -Math.PI / 2;
+                }
+                return;
+            }
+            else if (isYZero && isZZero)
+            {
+                alpha = 0.0;
+                if (dirVect.X > 0)
+                {
+                    beta = 0;
+                }
+                else
+                {
+                    alpha = Math.PI;
+                    beta = 0;
+                }
+                return;
+            }
+            else if (isXZero && isZZero)
+            {
+                beta = 0.0;
+                if (dirVect.Y > 0)
+                {
+                    alpha = Math.PI/2;
+                }
+                else
+                {
+                    alpha = -Math.PI / 2;
+                }
+                return;
+            }
+
+            alpha = Math.Atan2(dirVect.Y, dirVect.X);
+            if (IsZero(dirVect.Y))
+            {
+                alpha = IsGreater(dirVect.X,0) ? 0 : Math.PI;
+                beta = Math.Atan2(dirVect.Z, Math.Abs(dirVect.X));
+            }
+            else
+            {
+                double xy = Math.Sqrt(dirVect.X * dirVect.X + dirVect.Y * dirVect.Y);
+                beta = Math.Atan2(dirVect.Z, xy);
+
+                if (IsEqual(alpha,Math.PI, precision) || IsEqual(-alpha,Math.PI, precision))
+                {
+                    alpha = Math.PI;
+                }
+            }
+        }
 
         protected override ModelBIM ImportActive(CountryCode countryCode, RequestedItemsType requestedType)
         {
-            if (_selectedObjects?.Count == 0)
+            try
             {
-                Debug.Fail("Nothing selected");
-                return null;
-            }
 
-            OpenModel openModel = new OpenModel
-            {
-                OriginSettings = new OriginSettings() { CrossSectionConversionTable = IdeaRS.OpenModel.CrossSectionConversionTable.NoUsed, CountryCode = countryCode }
-            };
-
-            
-
-
-
-            var mBim = new ModelBIM
-            {
-                Project = _integrationBase.CurrentProject.Name,
-                // Project = _integrationBase.CurrentProject.Id.ToString()  Maybe Id --> is unique
-                RequestedItems = requestedType,
-                Model = new OpenModel
+                if (_selectedObjects?.Count == 0)
                 {
-
+                    Debug.Fail("Nothing selected");
+                    return null;
                 }
-            };
 
-            int ccsId = 1;
-            int matId = 1;
-            int memberId = 1;
-            ConnectionPoint connectionPoint = null;
-            foreach (var obj in _selectedObjects)
-            {
-                if (obj is StructuralPointConnection point)
+                var materials = new Dictionary<string, MatSteelEc2>();
+                var crossSections = new Dictionary<string, CrossSectionParameter>();
+                var pointConnections = _selectedObjects.OfType<StructuralPointConnection>().ToList();
+                var curveMembers = _selectedObjects.OfType<StructuralCurveMember>().ToList();
+                var assemblies = _selectedObjects.OfType<ElementAssembly>().ToList();
+                if (pointConnections.Count == 0)
+                {
+                    MessageBoxHelper.ShowInformation("please select a PointConnection object to identify the connectionPoint", null);
+                    return null;
+                }
+
+                // read all nodes (maybe it's esier)
+                var nodes = _integrationBase.ApiCore.DtObjects.GetObjects<StructuralPointConnection>(
+                    _integrationBase.CurrentProject.Id, false, false, true);
+
+                
+
+                OpenModel openModel = new OpenModel
+                {
+                    OriginSettings = new OriginSettings() { CrossSectionConversionTable = IdeaRS.OpenModel.CrossSectionConversionTable.NoUsed, CountryCode = countryCode }
+                };
+
+
+                int ccsId = 1;
+                int matId = 1;
+                int lsId = 1;
+                int memberId = 1;
+                // ConnectionPoint
+                ConnectionPoint connectionPoint = null;
+                foreach (var point in pointConnections)
                 {
                     // ad main node to openModel
                     connectionPoint = new ConnectionPoint();
+                    if (point.NodeId.HasValue)
+                        ConnectionPointId = point.NodeId.Value;
                     Point3D node = AddNodeToOpenModel(point, openModel, ConnectionPointId);
                     connectionPoint.Node = new ReferenceElement(node);
 
@@ -188,171 +276,282 @@ namespace AllplanBimplusDemo.Classes
                     connectionPoint.Name = string.Format("Conn-{0}", ConnectionPointId);
                     connectionPoint.ProjectFileName = Path.Combine(".\\Connections", connectionPoint.Name + ".ideaCon");
                 }
-            }
-
-            foreach (var obj in _selectedObjects)
-            {
-                    
-               if (obj is ElementAssembly ass)
-               {
-                    MatSteelEc2 material = new MatSteelEc2();
-
-                    // set properties
-                    material.Id = matId++;
-                    material.Name = "S355";
-                    material.E = 210000000000;
-                    material.G = material.E / (2 * (1 + 0.3));
-                    material.Poisson = 0.3;
-                    material.UnitMass = 7850;
-                    material.SpecificHeat = 0.6;
-                    material.ThermalExpansion = 0.000012;
-                    material.ThermalConductivity = 45;
-                    material.IsDefaultMaterial = false;
-                    material.OrderInCode = 0;
-                    material.StateOfThermalExpansion = ThermalExpansionState.Code;
-                    material.StateOfThermalConductivity = ThermalConductivityState.Code;
-                    material.StateOfThermalSpecificHeat = ThermalSpecificHeatState.Code;
-                    material.StateOfThermalStressStrain = ThermalStressStrainState.Code;
-                    material.StateOfThermalStrain = ThermalStrainState.Code;
-                    material.fy = 355000000;
-                    material.fu = 510000000;
-                    material.fy40 = 335000000;
-                    material.fu40 = 470000000;
-                    material.DiagramType = SteelDiagramType.Bilinear;
-
-                    // add material to the model
-                    openModel.AddObject(material);
-
-                    CrossSectionParameter css = new CrossSectionParameter();
-                    css.Id = ccsId++;
-                    css.Name = "HE200B";
-                    css.CrossSectionRotation = 0;
-                    css.CrossSectionType = CrossSectionType.RolledI;
-
-                    css.Parameters.Add(new ParameterString() { Name = "UniqueName", Value = "HE200B" });
-                    css.Material = new ReferenceElement(material);
-
-                    // add cross sections to the model
-                    openModel.AddObject(css);
 
 
-                    Member1D mb = new Member1D
+                // try to add Member1D objects if they are not selected by user
+                foreach (var assembly in assemblies)
+                {
+                    if (assembly.Connections == null) continue;
+                    foreach (var c in assembly.Connections)
+                    {
+                        var ce = c as RelConnectsElements;
+                        if (ce == null || curveMembers.Find(x => x.Id == ce.RelatedElement.Value) != null) continue;
+                        var cm = _integrationBase.ApiCore.DtObjects.GetObjectInternal(ce.RelatedElement.Value) as StructuralCurveMember;
+                        if (cm != null)
+                        {
+                            foreach (var cm1 in pointConnections[0].ConnectsStructuralMembers)
+                            {
+                                if(cm.Id.ToString() == cm1.RelatingStructuralMember.GetValueOrDefault().ToString())
+                                {
+                                    curveMembers.Add(cm);
+                                }
+                            }
+                        }
+                        }
+                    }
+                    // create Element1D from StructuralCurveMember
+                    foreach (var element in curveMembers)
+                {
+                    var matName = element.GetStringProperty(TableNames.contentAttributes, MaterialAttributeId) ?? "S355";
+                    if (!materials.ContainsKey(matName))
+                    {
+                        MatSteelEc2 material = new MatSteelEc2();
+
+                        // set properties
+                        material.Id = matId++;
+                        material.Name = matName;
+                        material.E = 210000000000;
+                        material.G = material.E / (2 * (1 + 0.3));
+                        material.Poisson = 0.3;
+                        material.UnitMass = 7850;
+                        material.SpecificHeat = 0.6;
+                        material.ThermalExpansion = 0.000012;
+                        material.ThermalConductivity = 45;
+                        material.IsDefaultMaterial = false;
+                        material.OrderInCode = 0;
+                        material.StateOfThermalExpansion = ThermalExpansionState.Code;
+                        material.StateOfThermalConductivity = ThermalConductivityState.Code;
+                        material.StateOfThermalSpecificHeat = ThermalSpecificHeatState.Code;
+                        material.StateOfThermalStressStrain = ThermalStressStrainState.Code;
+                        material.StateOfThermalStrain = ThermalStrainState.Code;
+                        material.fy = 355000000;
+                        material.fu = 510000000;
+                        material.fy40 = 335000000;
+                        material.fu40 = 470000000;
+                        material.DiagramType = SteelDiagramType.Bilinear;
+
+                        // add material to the model
+                        openModel.AddObject(material);
+                        materials.Add(matName, material);
+                    }
+
+                    var crossSection = element.GetStringProperty(TableNames.contentAttributes, CrossSectionAttributeId) ?? "HE200B";
+                    if (!crossSections.ContainsKey(crossSection))
+                    {
+                        crossSection = crossSection.Replace("HE200B", "HEB200");
+                        crossSection = crossSection.Replace("HE240B", "HEB240");
+                        CrossSectionParameter css = new CrossSectionParameter
+                        {
+                            Id = ccsId++,
+                            Name = crossSection,
+                            CrossSectionRotation = 0,
+                            CrossSectionType = CrossSectionType.RolledI,
+                            Material = new ReferenceElement(materials[matName])
+                        };
+                        css.Parameters.Add(new ParameterString() { Name = "UniqueName", Value = crossSection });
+
+                        // add cross sections to the model
+                        openModel.AddObject(css);
+                        crossSections.Add(crossSection, css);
+                    }
+
+                    if (element?.ConnectedBy.Count != 2)
+                        continue;
+
+                    var node = nodes.Find(x => x.Id == element?.ConnectedBy[0].RelatedStructuralConnection.Value);
+                    if (node == null) continue;
+                    Point3D ptA = AddNodeToOpenModel(node, openModel, node.NodeId.GetValueOrDefault());
+
+                    node = nodes.Find(x => x.Id == element?.ConnectedBy[1].RelatedStructuralConnection.Value);
+                    Point3D ptB = AddNodeToOpenModel(node, openModel, node.NodeId.GetValueOrDefault());
+
+                    var member1d = new Member1D
                     {
                         Id = memberId++,
+                        Name = element.Name
                     };
 
-                    string nameBar = "B" + mb.Id.ToString();
-                    // LINE SEGMENT - LCS geometry
                     IdeaRS.OpenModel.Geometry3D.PolyLine3D polyLine3D = new IdeaRS.OpenModel.Geometry3D.PolyLine3D
                     {
-                        Id = mb.Id
-                    };
-                    IdeaRS.OpenModel.Geometry3D.LineSegment3D ls = new IdeaRS.OpenModel.Geometry3D.LineSegment3D
-                    {
-                        Id = mb.Id
+                        Id = member1d.Id
                     };
 
-                    // ELEMENT 1D - definition
-                    Element1D el = new Element1D
+                    var start = new WM.Point3D(ptA.X, ptA.Y, ptA.Z);
+                    var end = new WM.Point3D(ptB.X, ptB.Y, ptB.Z);
+                    var dirVectort = end - start;
+
+                    GetAngles(dirVectort, out double alpha, out double beta);
+                    beta *= -1;
+
+                    CI.Geometry3D.Matrix44 lcsSegmentMatrix = new CI.Geometry3D.Matrix44();
+
+                    if (!IsZero(beta))
                     {
-                        Id = mb.Id,
-                        Name = "E" + nameBar,
-                        Segment = new ReferenceElement(ls)
+                        // gamma pitch
+                        lcsSegmentMatrix.Rotate(beta, new CI.Geometry3D.Vector3D(0, 1, 0));
+                    }
+
+                    if (!IsZero(alpha))
+                    {
+                        // beta direction
+                        lcsSegmentMatrix.Rotate(alpha, new CI.Geometry3D.Vector3D(0, 0, 1));
+                    }
+
+                    IdeaRS.OpenModel.Geometry3D.LineSegment3D ls = new IdeaRS.OpenModel.Geometry3D.LineSegment3D
+                    {
+                        Id = member1d.Id,
+                        StartPoint = new ReferenceElement(ptA),
+                        EndPoint = new ReferenceElement(ptB),
+                        LocalCoordinateSystem = new IdeaRS.OpenModel.Geometry3D.CoordSystemByVector()
+                        {
+                            VecX = new IdeaRS.OpenModel.Geometry3D.Vector3D()
+                            {
+                                X = lcsSegmentMatrix.AxisX.DirectionX,
+                                Y = lcsSegmentMatrix.AxisX.DirectionY,
+                                Z = lcsSegmentMatrix.AxisX.DirectionZ,
+                            }
+            ,
+                            VecY = new IdeaRS.OpenModel.Geometry3D.Vector3D()
+                            {
+                                X = lcsSegmentMatrix.AxisY.DirectionX,
+                                Y = lcsSegmentMatrix.AxisY.DirectionY,
+                                Z = lcsSegmentMatrix.AxisY.DirectionZ,
+                            }
+            ,
+                            VecZ = new IdeaRS.OpenModel.Geometry3D.Vector3D()
+                            {
+                                X = lcsSegmentMatrix.AxisZ.DirectionX,
+                                Y = lcsSegmentMatrix.AxisZ.DirectionY,
+                                Z = lcsSegmentMatrix.AxisZ.DirectionZ,
+                            }
+                        },
                     };
+                    polyLine3D.Segments.Add(new ReferenceElement(ls));
 
                     openModel.PolyLine3D.Add(polyLine3D);
                     openModel.LineSegment3D.Add(ls);
+                   
+                    Element1D element1d = new Element1D
+                    {
+                        Id = member1d.Id,
+                        Name = element.Id.ToString(), //element.Name, Its esier for mapping Element1D with bimplus Structuralcurvemember
+                        RotationRx = element.GetDoubleProperty(TableNames.contentAttributes, RotationAttributeId) ?? 0,
+                        CrossSectionBegin = new ReferenceElement(crossSections[crossSection]),
+                        CrossSectionEnd = new ReferenceElement(crossSections[crossSection]),
+                        Segment = new ReferenceElement(ls)
+                    };
+                    openModel.Element1D.Add(element1d);
 
-                    // NEED TODO
-                    /* Point3D ptA = AddNodeToOpenModel(centLineStart, openModel);
-                     Point3D ptB = AddNodeToOpenModel(centLineEnd, openModel);
+                    member1d.Elements1D.Add(new ReferenceElement(element1d));
 
-                     ls.StartPoint = new ReferenceElement(ptA);
-                     ls.EndPoint = new ReferenceElement(ptB);
-
-                     ls.LocalCoordinateSystem = new IdeaRS.OpenModel.Geometry3D.CoordSystemByVector()
-                     {
-                         VecX = new IdeaRS.OpenModel.Geometry3D.Vector3D()
-                         {
-                             X = ,
-                             Y = ,
-                             Z = 
-                         }
-             ,
-                         VecY = new IdeaRS.OpenModel.Geometry3D.Vector3D()
-                         {
-                             X = ,
-                             Y = ,
-                             Z = 
-                         }
-             ,
-                         VecZ = new IdeaRS.OpenModel.Geometry3D.Vector3D()
-                         {
-                             X = ,
-                             Y = ,
-                             Z = 
-                         }
-                     };*/
-
-                    polyLine3D.Segments.Add(new ReferenceElement(ls));
-
-                    //el.RotationRx = ;
-
-                    el.CrossSectionBegin = new ReferenceElement(css);
-                    el.CrossSectionEnd = new ReferenceElement(css);
-
-                    openModel.Element1D.Add(el);
-                    mb.Elements1D.Add(new ReferenceElement(el));
-                    openModel.Member1D.Add(mb);
+                    openModel.Member1D.Add(member1d);
 
                     if (connectionPoint != null)
                     {
                         ConnectedMember conMb = new ConnectedMember
                         {
-                            Id = mb.Id,
-                            MemberId = new ReferenceElement(mb),
+                            Id = member1d.Id,
+                            MemberId = new ReferenceElement(member1d),
                             IsContinuous = false,
                         };
 
                         connectionPoint.ConnectedMembers.Add(conMb);
                     }
 
-                    // BEAM DATA - definition
                     BeamData beamData = new BeamData
                     {
-                        Id = mb.Id,
-                        OriginalModelId = ass.Id.ToString(),
+                        Id = member1d.Id,
+                        OriginalModelId = member1d.Id.ToString(),
                         IsAdded = false,
                         MirrorY = false,
-                        RefLineInCenterOfGravity = false,
+                        RefLineInCenterOfGravity = true,
                     };
 
                     if (openModel.Connections.Count == 0)
                     {
                         openModel.Connections.Add(new ConnectionData());
                     }
-
                     (openModel.Connections[0].Beams ?? (openModel.Connections[0].Beams = new List<BeamData>())).Add(beamData);
                 }
+
+                // create Member1D from assemblies
+                /* foreach (var assembly in assemblies)
+                 {
+                     var member1d = new Member1D
+                     {
+                         Id = assembly.OrderNumber.GetValueOrDefault(),
+                         Name = assembly.Name
+                     };
+                     foreach (var c in assembly.Connections)
+                     {
+                         var ce = c as RelConnectsElements;
+                         var element = openModel.Element1D.Find(x => x.Name == ce.RelatedElement.ToString());
+                         if (element == null) continue;
+                         member1d.Elements1D.Add(new ReferenceElement(element));
+                         openModel.Member1D.Add(member1d);
+                     }
+                 }*/
+
+                /*if (connectionPoint != null)
+                 {
+                     var p0t = pointConnections.Find(x => x.NodeId.GetValueOrDefault() == ConnectionPointId);
+                     if (p0t != null && p0t.ConnectsStructuralMembers != null)
+                     {
+                         foreach (var cm in p0t.ConnectsStructuralMembers)
+                         {
+                             var member = openModel.Element1D.Find(x => x.Name == cm.RelatingStructuralMember.GetValueOrDefault().ToString());
+                             if (member == null)
+                                 continue;
+                             ConnectedMember conMb = new ConnectedMember
+                             {
+                                 Id = member.Id,
+                                 MemberId = new ReferenceElement(member),
+                                 IsContinuous = false,
+                             };
+                             connectionPoint.ConnectedMembers.Add(conMb);
+
+                             // BEAM DATA - definition
+                             BeamData bData = new BeamData
+                             {
+                                 Id = conMb.Id,
+                                 OriginalModelId = "???", // ass.Id.ToString(), is it important?
+                                 IsAdded = false,
+                                 MirrorY = false,
+                                 RefLineInCenterOfGravity = false,
+                             };
+                             if (openModel.Connections.Count == 0)
+                             {
+                                 openModel.Connections.Add(new ConnectionData { Beams = new List<BeamData>() });
+                             }
+                             openModel.Connections[0].Beams.Add(bData);
+                         }
+                     }
+
+                 }*/
+                openModel.AddObject(connectionPoint); // important !!!
+
+                OpenModelResult openModelResult =
+                new OpenModelResult()
+                {
+                    ResultOnMembers = new System.Collections.Generic.List<ResultOnMembers>() { new ResultOnMembers() }
+                };
+                OpenMessages openMessages = new OpenMessages();
+
+                return new ModelBIM()
+                {
+                    Items = new List<BIMItemId>() { new BIMItemId() { Id = connectionPoint.Id, Type = BIMItemType.Node } },
+                    Model = openModel,
+                    Results = openModelResult,
+                    Messages = openMessages,
+                    Project = AllplanBimplusDemo.Properties.Settings.Default.IdeaDefaultWorkingDir,
+                };
             }
-
-            openModel.AddObject(connectionPoint); // important !!!
-
-            OpenModelResult openModelResult =
-            new OpenModelResult()
+            catch (Exception e)
             {
-                ResultOnMembers = new System.Collections.Generic.List<ResultOnMembers>() { new ResultOnMembers() }
-            };
-            OpenMessages openMessages = new OpenMessages();
+                MessageBoxHelper.ShowInformation(e.Message, null);
+                return null;
 
-            return new ModelBIM()
-            {
-                Items = new List<BIMItemId>() { new BIMItemId() { Id = 1, Type = BIMItemType.Node } },
-                Model = openModel,
-                Results = openModelResult,
-                Messages = openMessages,
-                Project = $"C:\\temp\\BIMpLus",
-            };
+            }
         }
 
         protected override List<ModelBIM> ImportSelection(CountryCode countryCode, List<BIMItemsGroup> items)
