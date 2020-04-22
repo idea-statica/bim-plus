@@ -1,2 +1,2 @@
-# bimplus-dotnet-demo
-Detailed examples for the use of the Bimplus .Net SDK
+# bim-plus
+The example of the communication between Bim plus and IDEA StatiCa CCM
