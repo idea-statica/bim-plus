@@ -36,8 +36,7 @@ namespace AllplanBimplusDemo.Classes
 		{
 			get
 			{
-				return @"C:\Users\pavel.vadura\Work\deve_13\_Sources\bin\Debug\IdeaCodeCheck.exe";
-				//return "D:\\Program Files\\IDEA StatiCa\\StatiCa 20.0\\IdeaCodeCheck.exe";
+				return AllplanBimplusDemo.Properties.Settings.Default.IdeaStatiCaCCM;
 			}
 		}
 	}
