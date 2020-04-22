@@ -56,16 +56,17 @@ namespace AllplanBimplusDemo.UserControls
         #region private member
 
         private IntegrationBase _integrationBase;
-        private PluginFactory _ideaStaticaFactory;
         private WPFWindows.Window _parentWindow;
 
         private WebViewer _webViewer;
 
-        #endregion private member
+    private IdeaStatiCaController ideaController;
 
-        #region properties
+    #endregion private member
 
-        private bool _buttonsEnabled;
+    #region properties
+
+    private bool _buttonsEnabled;
 
         public bool ButtonsEnabled
         {
@@ -81,11 +82,13 @@ namespace AllplanBimplusDemo.UserControls
             }
         }
 
-        #endregion properties
+    internal IdeaStatiCaController IdeaController { get => ideaController; set => ideaController = value; }
 
-        #region public methods
+    #endregion properties
 
-        public void LoadContent(IntegrationBase integrationBase, WPFWindows.Window parent)
+    #region public methods
+
+    public void LoadContent(IntegrationBase integrationBase, WPFWindows.Window parent)
         {
             _integrationBase = integrationBase;
             _integrationBase.EventHandlerCore.DataLoaded += EventHandlerCore_DataLoaded;
@@ -95,7 +98,8 @@ namespace AllplanBimplusDemo.UserControls
             NavigateToControl();
 
             BimExplorer.Content = _webViewer;
-        }
+            IdeaController = new IdeaStatiCaController(integrationBase);
+    }
 
         public void UnloadContent()
         {
@@ -112,6 +116,7 @@ namespace AllplanBimplusDemo.UserControls
             ProgressWindow.Hide();
             ButtonsEnabled = true;
         }
+
         #endregion Bimplus events
 
         #region private methods
@@ -132,7 +137,7 @@ namespace AllplanBimplusDemo.UserControls
                     : $"model '{modelName}' successfully created");
             }
 
-            if (model == null || model.TopologyDivisionId.GetValueOrDefault(Guid.Empty) != Guid.Empty)
+            if (model == null || model.TopologyDivisionId.GetValueOrDefault(Guid.Empty) != Guid.Empty) 
                 return model;
 
             // Create main root TopologyDivision node.
@@ -774,7 +779,7 @@ namespace AllplanBimplusDemo.UserControls
                         });
                     }
 
-                    node = (TopologyItem)_integrationBase.ApiCore.DtObjects.PostObject(node);
+                    node = (TopologyItem) _integrationBase.ApiCore.DtObjects.PostObject(node);
                     nodes = node.Children.OfType<StructuralPointConnection>().ToList();
                 }
 
@@ -818,7 +823,7 @@ namespace AllplanBimplusDemo.UserControls
                             }
                         });
                     }
-                    beams = (TopologyItem)_integrationBase.ApiCore.DtObjects.PostObject(beams);
+                    beams = (TopologyItem) _integrationBase.ApiCore.DtObjects.PostObject(beams);
                     curveMembers = beams.Children.OfType<StructuralCurveMember>().ToList();
                 }
 
@@ -847,7 +852,7 @@ namespace AllplanBimplusDemo.UserControls
                         if (crossSection == null)
                             crossSection = element.CrossSectionBegin.Element as CrossSection;
 
-                        if (!(element.Segment.Element is LineSegment3D line))
+                        if (!(element.Segment.Element is LineSegment3D line)) 
                             continue;
 
                         if (path.Geometry.Count == 0)
@@ -860,12 +865,12 @@ namespace AllplanBimplusDemo.UserControls
                             path.OffsetY = element.EccentricityBeginY;
                             if (line.StartPoint.Element is Point3D sp)
                                 path.Geometry.Add(new StartPolygon
-                                { Point = new List<double> { sp.X * 1000F, sp.Y * 1000F, sp.Z * 1000F } });
+                                    {Point = new List<double> {sp.X * 1000F, sp.Y * 1000F, sp.Z * 1000F}});
                         }
 
                         if (line.EndPoint.Element is Point3D ep)
                             path.Geometry.Add(new Line
-                            { Point = new List<double> { ep.X * 1000F, ep.Y * 1000F, ep.Z * 1000F } });
+                                {Point = new List<double> {ep.X * 1000F, ep.Y * 1000F, ep.Z * 1000F}});
                     }
 
                     assemblies.Children.Add(new ElementAssembly
@@ -876,7 +881,7 @@ namespace AllplanBimplusDemo.UserControls
                         CsgTree = new DtoCsgTree
                         {
                             Color = (uint)Color.CadetBlue.ToArgb(),
-                            Elements = new List<CsgElement>(1) { path }
+                            Elements = new List<CsgElement>(1){ path }
                         }
                     });
                 }
@@ -938,12 +943,12 @@ namespace AllplanBimplusDemo.UserControls
                 foreach (var idCon in example.Connections)
                 {
                     // mappingTable between IdeaStatica.Id and BimPlus.Id
-                    Dictionary<int, Guid> connectionIds = new Dictionary<int, Guid>();
+                    Dictionary<int,Guid> connectionIds = new Dictionary<int, Guid>();
                     foreach (var b in idCon.Beams)
                     {
                         var assembly = assemblies.Find(x => x.Name == b.Name);
                         if (assembly == null) continue;
-                        connectionIds.Add(b.Id, assembly.Id);
+                        connectionIds.Add(b.Id,assembly.Id);
                     }
 
                     DtoConnections connection = new DtoConnections
@@ -951,7 +956,7 @@ namespace AllplanBimplusDemo.UserControls
                         ElementIds = connectionIds.Values.ToList(),
                         ConnectionElement = new ConnectionElement
                         {
-                            Name = "IdeaStatica_Connection",
+                            Name =  "IdeaStatica_Connection",
                             Children = new List<DtObject>()
                         }
                     };
@@ -966,7 +971,7 @@ namespace AllplanBimplusDemo.UserControls
                             LogParentID = model.ProjectId,
                             CsgTree = new DtoCsgTree
                             {
-                                Color = (uint)Color.DarkCyan.ToArgb(),
+                                Color = (uint) Color.DarkCyan.ToArgb(),
                                 Elements = new List<CsgElement>(2)
                                 {
                                     new Path
@@ -986,7 +991,7 @@ namespace AllplanBimplusDemo.UserControls
                                                                        p.Thickness * 1000F * p.AxisX.Z}
                                                     : new List<double>{p.Thickness * 1000F * p.AxisZ.X,
                                                                        p.Thickness * 1000F * p.AxisZ.Y,
-                                                                       p.Thickness * 1000F * p.AxisZ.Z
+                                                                       p.Thickness * 1000F * p.AxisZ.Z 
                                                 }
                                             }
                                         }
@@ -1005,9 +1010,9 @@ namespace AllplanBimplusDemo.UserControls
                             double x = double.Parse(items[i + 1], CultureInfo.InvariantCulture) * 1000F;
                             double y = double.Parse(items[i + 2], CultureInfo.InvariantCulture) * 1000F;
                             if (items[i] == "M")
-                                plate.CsgTree.Elements[1].Geometry.Add(new StartPolygon { Point = new List<double> { x, y } });
+                                plate.CsgTree.Elements[1].Geometry.Add(new StartPolygon {Point = new List<double> {x, y}});
                             else if (items[i] == "L")
-                                plate.CsgTree.Elements[1].Geometry.Add(new Line { Point = new List<double> { x, y } });
+                                plate.CsgTree.Elements[1].Geometry.Add(new Line {Point = new List<double> {x, y}});
                         }
 
                         plate.Matrix = new TmpMatrix
@@ -1060,8 +1065,8 @@ namespace AllplanBimplusDemo.UserControls
                                 CsgTree = new DtoCsgTree
                                 {
                                     Color = (uint)Color.Gray.ToArgb(),
-                                    Elements = new List<CsgElement>(1)
-                                    {
+                                    Elements = new List<CsgElement>(1) 
+                                    { 
                                         new Path {
                                             Geometry = new List<CsgGeoElement>
                                             {
@@ -1112,41 +1117,11 @@ namespace AllplanBimplusDemo.UserControls
             }
         }
 
-        private void RunIdeaStatiCaCCM_Click(object sender, RoutedEventArgs e)
-        {
-            RunIdeaStaticaCCM(null);
-        }
-
-        public void RunIdeaStaticaCCM(object param)
-        {
-            IBIMPluginHosting feaAppHosting;
-
-            _ideaStaticaFactory = new PluginFactory(new IdeaHistoryLog(), _integrationBase);
-            feaAppHosting = new BIMPluginHosting(_ideaStaticaFactory);
-            //feaAppHosting.AppStatusChanged += new ISEventHandler(IdeaStaticAppStatusChanged);
-            var id = System.Diagnostics.Process.GetCurrentProcess().Id.ToString();
-
-            //ProjectDir = Path.Combine(WorkingDirectory, ProjectName);
-            //if (!Directory.Exists(ProjectDir))
-            //{
-            //  Directory.CreateDirectory(ProjectDir);
-            //}
-
-            //var ideaStatiCaProjectDir = Path.Combine(ProjectDir, "IdeaStatiCa-" + ProjectName);
-            //if (!Directory.Exists(ideaStatiCaProjectDir))
-            //{
-            //  Directory.CreateDirectory(ideaStatiCaProjectDir);
-            //}
-
-            //Add(string.Format("Starting FEAPluginHosting clientTd = {0}", id));
-
-           // string ideaStatiCaProjectDir = $"D:\\IdeaStatica\\DemoProject1";
-            string ideaStatiCaProjectDir = $"C:\\temp\\BIMpLus";
-            
-            feaAppHosting.RunAsync(id, ideaStatiCaProjectDir);
-
-        }
-
-        #endregion button events
+    private void RunIdeaStatiCaCCM_Click(object sender, RoutedEventArgs e)
+    {
+      IdeaController.RunIdeaStaticaCCM(null);
     }
+
+    #endregion button events
+  }
 }
