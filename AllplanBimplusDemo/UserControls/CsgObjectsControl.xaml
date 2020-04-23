@@ -6,7 +6,7 @@
     xmlns:local="clr-namespace:AllplanBimplusDemo.UserControls"
     mc:Ignorable="d" 
              
-    xmlns:sys="clr-namespace:System;assembly=mscorlib" d:DesignWidth="300" Height="344.275">
+    xmlns:sys="clr-namespace:System;assembly=mscorlib" d:DesignWidth="300" Height="384.332">
 
     <UserControl.Resources>
 
@@ -71,6 +71,9 @@
                 <Button Content="IdeaStatica CCM" x:Name="RunIdeaStatiCaCCM" IsEnabled="{Binding ButtonsEnabled}" HorizontalAlignment="Center" ToolTip="Import IdeaStatica data." 
                     Margin="7.4,7" Height="{StaticResource ButtonHeight}" Width="{StaticResource ButtonWidth}"
                     RenderTransformOrigin="0.568,2.224" Click="RunIdeaStatiCaCCM_Click"/>
+                <Button Content="IdeaStatica Import" x:Name="RunIdeaStatiCaCCM_Copy" IsEnabled="{Binding ButtonsEnabled}" HorizontalAlignment="Center" ToolTip="IdeaStatica Import" 
+                    Margin="7.5,7" Height="{StaticResource ButtonHeight}" Width="{StaticResource ButtonWidth}"
+                    RenderTransformOrigin="0.568,2.224" Click="RunIdeaStatiCaCCM_Copy_Click" />
             </StackPanel>
         </Grid>
 
