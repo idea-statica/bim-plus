@@ -6,34 +6,33 @@ using BimPlus.Sdk.Data.CSG;
 using BimPlus.Sdk.Data.DbCore;
 using BimPlus.Sdk.Data.DbCore.Analysis;
 using BimPlus.Sdk.Data.DbCore.Building;
+using BimPlus.Sdk.Data.DbCore.Connection;
 using BimPlus.Sdk.Data.DbCore.Finishings;
 using BimPlus.Sdk.Data.DbCore.Help;
+using BimPlus.Sdk.Data.DbCore.Recess;
 using BimPlus.Sdk.Data.DbCore.Reinforcement;
 using BimPlus.Sdk.Data.DbCore.Steel;
 using BimPlus.Sdk.Data.DbCore.Structure;
 using BimPlus.Sdk.Data.Geometry;
 using BimPlus.Sdk.Data.GeometryTemplates;
-using BimPlus.Sdk.Data.TenantDto;
-using Nemetschek.NUtilLibrary;
-using Newtonsoft.Json;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Globalization;
-using System.Linq;
-using System.Windows;
-using BimPlus.Sdk.Data.DbCore.Connection;
-using BimPlus.Sdk.Data.DbCore.Recess;
 using BimPlus.Sdk.Data.StructuralLoadResource;
-using WPFWindows = System.Windows;
+using BimPlus.Sdk.Data.TenantDto;
 using IdeaRS.OpenModel;
 using IdeaRS.OpenModel.CrossSection;
 using IdeaRS.OpenModel.Geometry3D;
 using IdeaRS.OpenModel.Model;
 using IdeaRS.OpenModel.Result;
 using IOM.SteelFrame;
-using Point = System.Drawing.Point;
-using IdeaStatiCa.Plugin;
+using Nemetschek.NUtilLibrary;
+using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Diagnostics;
+using System.Drawing;
+using System.Globalization;
+using System.Linq;
+using System.Windows;
+using WPFWindows = System.Windows;
 
 // ReSharper disable IdentifierTypo
 // ReSharper disable RedundantExtendsListEntry
@@ -42,10 +41,10 @@ using IdeaStatiCa.Plugin;
 
 namespace AllplanBimplusDemo.UserControls
 {
-    /// <summary>
-    /// Interaction logic for CsgObjectsControl.xaml
-    /// </summary>
-    public partial class CsgObjectsControl : NotifyPropertyChangedUserControl
+  /// <summary>
+  /// Interaction logic for CsgObjectsControl.xaml
+  /// </summary>
+  public partial class CsgObjectsControl : NotifyPropertyChangedUserControl
     {
         public CsgObjectsControl()
         {
@@ -1126,7 +1125,8 @@ namespace AllplanBimplusDemo.UserControls
 
     private void RunIdeaStatiCaCCM_Copy_Click(object sender, RoutedEventArgs e)
     {
-      int connectioId = -1;
+      Debug.Fail("Set the correct id of the node (connection)");
+      int connectioId = 1;
       var res = IdeaController.GetConnectionModel(connectioId);
     }
   }

@@ -80,8 +80,7 @@ namespace AllplanBimplusDemo.Classes
       using (IdeaStatiCaAppClient ideaStatiCaApp = new IdeaStatiCaAppClient(myProcessId.ToString()))
       {
         ideaStatiCaApp.Open();
-
-        connectionData = ideaStatiCaApp.GetConnectionModel(1);
+        connectionData = ideaStatiCaApp.GetConnectionModel(connectionId);
       }
         
       return connectionData;
