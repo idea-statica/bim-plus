@@ -1,7 +1,9 @@
 ﻿using BimPlus.Client.Integration;
+using IdeaRS.OpenModel.Connection;
 using IdeaStatiCa.Plugin;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -56,8 +58,33 @@ namespace AllplanBimplusDemo.Classes
       string ideaStatiCaProjectDir = AllplanBimplusDemo.Properties.Settings.Default.IdeaDefaultWorkingDir;
 
       FeaAppHosting.RunAsync(id, ideaStatiCaProjectDir);
+    }
 
+    public ConnectionData GetConnectionModel(int connectionId)
+    {
+      if (FeaAppHosting == null)
+      {
+        return null;
+      }
 
+      var bimAppliction = (ApplicationBIM)FeaAppHosting.Service;
+      if(bimAppliction == null)
+      {
+        Debug.Fail("Can not cast to ApplicationBIM");
+        return null;
+      }
+
+      ConnectionData connectionData = null;
+      int myProcessId = bimAppliction.Id;
+
+      using (IdeaStatiCaAppClient ideaStatiCaApp = new IdeaStatiCaAppClient(myProcessId.ToString()))
+      {
+        ideaStatiCaApp.Open();
+
+        connectionData = ideaStatiCaApp.GetConnectionModel(1);
+      }
+        
+      return connectionData;
     }
 
 		private void IdeaStaticAppStatusChanged(object sender, ISEventArgs e)

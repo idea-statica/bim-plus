@@ -1123,5 +1123,11 @@ namespace AllplanBimplusDemo.UserControls
     }
 
     #endregion button events
+
+    private void RunIdeaStatiCaCCM_Copy_Click(object sender, RoutedEventArgs e)
+    {
+      int connectioId = -1;
+      var res = IdeaController.GetConnectionModel(connectioId);
+    }
   }
 }
