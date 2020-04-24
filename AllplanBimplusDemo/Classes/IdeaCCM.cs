@@ -556,7 +556,7 @@ namespace AllplanBimplusDemo.Classes
 
         protected override List<ModelBIM> ImportSelection(CountryCode countryCode, List<BIMItemsGroup> items)
         {
-            Debug.Fail("TODO");
+            //Debug.Fail("TODO");
             return null;
         }
     }
