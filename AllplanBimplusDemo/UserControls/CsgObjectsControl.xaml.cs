@@ -15,6 +15,7 @@ using BimPlus.Sdk.Data.DbCore.Steel;
 using BimPlus.Sdk.Data.DbCore.Structure;
 using BimPlus.Sdk.Data.Geometry;
 using BimPlus.Sdk.Data.GeometryTemplates;
+using BimPlus.Sdk.Data.DbCore.Connection;
 using BimPlus.Sdk.Data.StructuralLoadResource;
 using BimPlus.Sdk.Data.TenantDto;
 using IdeaRS.OpenModel;
@@ -22,6 +23,7 @@ using IdeaRS.OpenModel.CrossSection;
 using IdeaRS.OpenModel.Geometry3D;
 using IdeaRS.OpenModel.Model;
 using IdeaRS.OpenModel.Result;
+using IdeaRS.OpenModel.Connection;
 using IOM.SteelFrame;
 using Nemetschek.NUtilLibrary;
 using Newtonsoft.Json;
@@ -728,6 +730,9 @@ namespace AllplanBimplusDemo.UserControls
             }
         }
 
+        #endregion
+        #region IdeaStatica
+
         /// <summary>
         /// Import 'IdeaStatica' TestData into BimPlus
         /// </summary>
@@ -778,7 +783,7 @@ namespace AllplanBimplusDemo.UserControls
                         });
                     }
 
-                    node = (TopologyItem) _integrationBase.ApiCore.DtObjects.PostObject(node);
+                    node = (TopologyItem)_integrationBase.ApiCore.DtObjects.PostObject(node);
                     nodes = node.Children.OfType<StructuralPointConnection>().ToList();
                 }
 
@@ -789,20 +794,27 @@ namespace AllplanBimplusDemo.UserControls
                 {
                     var beams = new TopologyItem
                     {
-                        Name = "3DSegments",
+                        Name = "Element1D",
                         Parent = model.TopologyDivisionId,
                         Division = model.Id,
                         LogParentID = model.ProjectId,
                         Children = new List<DtObject>(example.LineSegment3D.Count)
                     };
 
-                    foreach (var cm in example.LineSegment3D)
+                    foreach (var elem1d in example.Element1D)
                     {
-                        beams.Children.Add(new StructuralCurveMember
+                        var cm = elem1d.Segment.Element as LineSegment3D;
+                        var cs = elem1d.CrossSectionBegin.Element as CrossSectionParameter;
+                        var mat = cs?.Material.Element as IdeaRS.OpenModel.Material.MatSteelEc2;
+
+                        if (cm == null)
+                            continue;
+                        var curveMember = new StructuralCurveMember
                         {
                             Division = model.Id,
                             LogParentID = model.ProjectId,
-                            Name = $"M{cm.Id}",
+                            OrderNumber = cm.Id,
+                            Name = elem1d.Name,
                             ConnectedBy = new List<RelConnectsStructuralMember>(2)
                             {
                                 new RelConnectsStructuralMember
@@ -814,22 +826,28 @@ namespace AllplanBimplusDemo.UserControls
                                 },
                                 new RelConnectsStructuralMember
                                 {
-                                    OrderNumber = 1,
-                                    Name = "R1",
+                                    OrderNumber = 2,
+                                    Name = "R2",
                                     RelatedStructuralConnection =
                                         nodes.Find(x => x.NodeId == cm.EndPoint.Element.Id)?.Id
                                 }
                             }
-                        });
+                        };
+                        curveMember.AddProperty(TableNames.contentAttributes, IdeaCCM.RotationAttributeId, elem1d.RotationRx);
+                        curveMember.AddProperty(TableNames.contentAttributes, IdeaCCM.CrossSectionAttributeId, cs.Name);
+                        if (mat != null)
+                            curveMember.AddProperty(TableNames.contentAttributes, IdeaCCM.MaterialAttributeId, mat.Name);
+
+                        beams.Children.Add(curveMember);
                     }
-                    beams = (TopologyItem) _integrationBase.ApiCore.DtObjects.PostObject(beams);
+                    beams = (TopologyItem)_integrationBase.ApiCore.DtObjects.PostObject(beams);
                     curveMembers = beams.Children.OfType<StructuralCurveMember>().ToList();
                 }
 
                 // create Assemblies
                 var assemblies = new TopologyItem
                 {
-                    Name = "Assemblies",
+                    Name = "Member1D",
                     Parent = model.TopologyDivisionId,
                     Division = model.Id,
                     LogParentID = model.ProjectId,
@@ -837,22 +855,33 @@ namespace AllplanBimplusDemo.UserControls
                 };
                 foreach (var member in example.Member1D)
                 {
+                    var relatedConnections = new List<ConnectionElement>();
                     //var elements = member.Elements1D.OfType<Element1D>().ToList();
                     var path = new BimPlus.Sdk.Data.CSG.Path
                     {
                         Geometry = new List<CsgGeoElement>()
                     };
-                    CrossSection crossSection = null;
+                    CrossSectionParameter crossSection = null;
+                    double rot = 0F;
                     foreach (var re in member.Elements1D)
                     {
                         if (!(re.Element is Element1D element))
                             continue;
 
+                        rot = element.RotationRx;
                         if (crossSection == null)
-                            crossSection = element.CrossSectionBegin.Element as CrossSection;
+                            crossSection = element.CrossSectionBegin.Element as CrossSectionParameter;
 
-                        if (!(element.Segment.Element is LineSegment3D line)) 
+                        if (!(element.Segment.Element is LineSegment3D line))
                             continue;
+
+                        var rel = curveMembers.Find(x => x.OrderNumber == line.Id);
+                        if (rel != null)
+                            relatedConnections.Add(new RelConnectsElements
+                            {
+                                Parent = model.ProjectId,
+                                RelatedElement = rel.Id
+                            });
 
                         if (path.Geometry.Count == 0)
                         {
@@ -864,25 +893,35 @@ namespace AllplanBimplusDemo.UserControls
                             path.OffsetY = element.EccentricityBeginY;
                             if (line.StartPoint.Element is Point3D sp)
                                 path.Geometry.Add(new StartPolygon
-                                    {Point = new List<double> {sp.X * 1000F, sp.Y * 1000F, sp.Z * 1000F}});
+                                { Point = new List<double> { sp.X * 1000F, sp.Y * 1000F, sp.Z * 1000F } });
                         }
 
                         if (line.EndPoint.Element is Point3D ep)
                             path.Geometry.Add(new Line
-                                {Point = new List<double> {ep.X * 1000F, ep.Y * 1000F, ep.Z * 1000F}});
+                            { Point = new List<double> { ep.X * 1000F, ep.Y * 1000F, ep.Z * 1000F } });
                     }
 
-                    assemblies.Children.Add(new ElementAssembly
+                    var assembly = new ElementAssembly
                     {
                         Division = model.Id,
                         LogParentID = model.ProjectId,
                         Name = member.Name,
+                        OrderNumber = member.Id,
                         CsgTree = new DtoCsgTree
                         {
                             Color = (uint)Color.CadetBlue.ToArgb(),
-                            Elements = new List<CsgElement>(1){ path }
-                        }
-                    });
+                            Elements = new List<CsgElement>(1) { path }
+                        },
+                        Connections = relatedConnections
+                    };
+
+                    // add some attributes 'crossSection', 'material'
+                    assembly.AddProperty(TableNames.contentAttributes, IdeaCCM.RotationAttributeId, rot);
+                    assembly.AddProperty(TableNames.contentAttributes, IdeaCCM.CrossSectionAttributeId, crossSection.Name);
+                    IdeaRS.OpenModel.Material.MatSteelEc2 material = crossSection.Material.Element as IdeaRS.OpenModel.Material.MatSteelEc2;
+                    if (material != null)
+                        assembly.AddProperty(TableNames.contentAttributes, IdeaCCM.MaterialAttributeId, material.Name);
+                    assemblies.Children.Add(assembly);
                 }
                 assemblies = (TopologyItem)_integrationBase.ApiCore.DtObjects.PostObject(assemblies);
             }
@@ -898,7 +937,6 @@ namespace AllplanBimplusDemo.UserControls
                 // refresh webviewer
                 NavigateToControl();
             }
-
         }
 
         private void IdeaStaticaConnection_OnClick(object sender, RoutedEventArgs e)
@@ -910,17 +948,47 @@ namespace AllplanBimplusDemo.UserControls
             ProgressWindow.Text = "Import IdeaStaticaExampleData.";
             ProgressWindow.Show();
 
-            // create/read bolt template
-            var boltTemplateId = _integrationBase.ApiCore.GeometryTemplate.Create(
-                JsonConvert.DeserializeObject<DtoTemplateArticle>(Properties.Resources.bolt_5074991643486136591));
+            // create IOM and results
+            OpenModel example = Example.CreateIOM();
+            //OpenModelResult result = Helpers.GetResults();
 
-            var test = _integrationBase.ApiCore.GeometryTemplate.Get(boltTemplateId);
+            CreateConnections(model, example.Connections);
+            ProgressWindow.Hide();
+            ButtonsEnabled = true;
 
+        }
+
+        private void RunIdeaStatiCaCCM_Click(object sender, RoutedEventArgs e)
+        {
+          IdeaController.RunIdeaStaticaCCM(null);
+        }
+
+        private void RunIdeaStatiCaCCM_Copy_Click(object sender, RoutedEventArgs e)
+        {
+            DtoDivision model = CreateCsgModel("IdeaStatica");
+            if (model == null)
+                return;
+
+            ProgressWindow.Text = "Import IdeaStatica ConnectionData.";
+            ProgressWindow.Show();
+
+
+            int connectionId = 1;
+            var connection = IdeaController.GetConnectionModel(out connectionId);
+            if (connection != null)
+                CreateConnections(model, new List<ConnectionData> { connection }, connectionId);
+
+            ProgressWindow.Hide();
+            ButtonsEnabled = true;
+        }
+
+        private void CreateConnections(DtoDivision model, List<ConnectionData> connections, int? eraseOnlyExisting = null)
+        {
             try
             {
-                // create IOM and results
-                OpenModel example = Example.CreateIOM();
-                //OpenModelResult result = Helpers.GetResults();
+                // create/read bolt template
+                var boltTemplateId = _integrationBase.ApiCore.GeometryTemplate.Create(
+                    JsonConvert.DeserializeObject<DtoTemplateArticle>(Properties.Resources.bolt_5074991643486136591));
 
                 var assemblies = _integrationBase.ApiCore.DtObjects.GetObjects<ElementAssembly>(
                     model.TopologyDivisionId.GetValueOrDefault(), false, false, true);
@@ -930,32 +998,51 @@ namespace AllplanBimplusDemo.UserControls
                     return;
                 }
 
-                var connections = _integrationBase.ApiCore.DtObjects.GetObjects<ProjectConnection>(model.ProjectId);
-                if (connections != null && connections.Count > 0)
+                var dtoConnections = _integrationBase.ApiCore.DtObjects.GetObjects<ProjectConnection>(model.ProjectId);
+                if (dtoConnections != null && dtoConnections.Count > 0)
                 {
-                    foreach (var con in connections)
+                    foreach (var con in dtoConnections)
                     {
                         _integrationBase.ApiCore.DtoConnection.DeleteConnections(con.Id);
                     }
                 }
 
-                foreach (var idCon in example.Connections)
+                foreach (var idCon in connections)
                 {
                     // mappingTable between IdeaStatica.Id and BimPlus.Id
-                    Dictionary<int,Guid> connectionIds = new Dictionary<int, Guid>();
+                    Dictionary<int, Guid> connectionIds = new Dictionary<int, Guid>();
                     foreach (var b in idCon.Beams)
                     {
                         var assembly = assemblies.Find(x => x.Name == b.Name);
-                        if (assembly == null) continue;
-                        connectionIds.Add(b.Id,assembly.Id);
+                        if (assembly == null && Guid.TryParse(b.Name, out Guid bimId))
+                        {
+                            var obj = _integrationBase.ApiCore.DtObjects.GetObjectInternal(bimId);
+                            if (obj == null) continue;
+                            if (obj is StructuralCurveMember sc)
+                            {
+                                var sts = sc.Connections.OfType<RelConnectsElements>().FirstOrDefault();
+                                if (sts == null) continue;
+                                assembly = assemblies.Find(x => x.Id == sts.RelatingElement.Value);
+                            }
+                        }
+                        //    assembly = assemblies.Find(x => x.Id.ToString().Equals(b.Name, StringComparison.InvariantCultureIgnoreCase));
+                        if (assembly == null)
+                            continue;
+                        connectionIds.Add(b.Id, assembly.Id);
+                    }
+                    if (connectionIds.Count == 0)
+                    {
+                        MessageBoxHelper.ShowInformation("Could not find elements in current BimPlus model.", _parentWindow);
+                        return;
+
                     }
 
-                    DtoConnections connection = new DtoConnections
+                    DtoConnections dtoConnection = new DtoConnections
                     {
                         ElementIds = connectionIds.Values.ToList(),
                         ConnectionElement = new ConnectionElement
                         {
-                            Name =  "IdeaStatica_Connection",
+                            Name = "IdeaStatica_Connection",
                             Children = new List<DtObject>()
                         }
                     };
@@ -970,7 +1057,7 @@ namespace AllplanBimplusDemo.UserControls
                             LogParentID = model.ProjectId,
                             CsgTree = new DtoCsgTree
                             {
-                                Color = (uint) Color.DarkCyan.ToArgb(),
+                                Color = (uint)Color.DarkCyan.ToArgb(),
                                 Elements = new List<CsgElement>(2)
                                 {
                                     new Path
@@ -990,7 +1077,7 @@ namespace AllplanBimplusDemo.UserControls
                                                                        p.Thickness * 1000F * p.AxisX.Z}
                                                     : new List<double>{p.Thickness * 1000F * p.AxisZ.X,
                                                                        p.Thickness * 1000F * p.AxisZ.Y,
-                                                                       p.Thickness * 1000F * p.AxisZ.Z 
+                                                                       p.Thickness * 1000F * p.AxisZ.Z
                                                 }
                                             }
                                         }
@@ -1009,9 +1096,9 @@ namespace AllplanBimplusDemo.UserControls
                             double x = double.Parse(items[i + 1], CultureInfo.InvariantCulture) * 1000F;
                             double y = double.Parse(items[i + 2], CultureInfo.InvariantCulture) * 1000F;
                             if (items[i] == "M")
-                                plate.CsgTree.Elements[1].Geometry.Add(new StartPolygon {Point = new List<double> {x, y}});
+                                plate.CsgTree.Elements[1].Geometry.Add(new StartPolygon { Point = new List<double> { x, y } });
                             else if (items[i] == "L")
-                                plate.CsgTree.Elements[1].Geometry.Add(new Line {Point = new List<double> {x, y}});
+                                plate.CsgTree.Elements[1].Geometry.Add(new Line { Point = new List<double> { x, y } });
                         }
 
                         plate.Matrix = new TmpMatrix
@@ -1025,9 +1112,9 @@ namespace AllplanBimplusDemo.UserControls
                             }
                         };
 
-                        plate.AddProperty(TableNames.tabAttribConstObjInstObj, "Objects_Connection", connectionIds[3]);
+                        plate.AddProperty(TableNames.tabAttribConstObjInstObj, "ConnectionChild-Element", connectionIds[3]);
 
-                        connection.ConnectionElement.Children.Add(plate);
+                        dtoConnection.ConnectionElement.Children.Add(plate);
                     }
 
                     foreach (var bGrid in idCon.BoltGrids)
@@ -1053,7 +1140,7 @@ namespace AllplanBimplusDemo.UserControls
                                 }
                             };
                             var json = Newtonsoft.Json.JsonConvert.SerializeObject(fastener);
-                            connection.ConnectionElement.Children.Add(fastener);
+                            dtoConnection.ConnectionElement.Children.Add(fastener);
 
                             var opening = new Opening
                             {
@@ -1064,15 +1151,15 @@ namespace AllplanBimplusDemo.UserControls
                                 CsgTree = new DtoCsgTree
                                 {
                                     Color = (uint)Color.Gray.ToArgb(),
-                                    Elements = new List<CsgElement>(1) 
-                                    { 
+                                    Elements = new List<CsgElement>(1)
+                                    {
                                         new Path {
                                             Geometry = new List<CsgGeoElement>
                                             {
                                                 new StartPolygon {Point = new List<double> {0, 0, 0}},
                                                 new Line {Point = new List<double> { 100F * bGrid.AxisX.X, 100F * bGrid.AxisX.Y, 100F * bGrid.AxisX.Z}}
                                             },
-                                            CrossSection = "RD8"
+                                            CrossSection = "RD16"
                                         }
                                     }
                                 },
@@ -1087,7 +1174,7 @@ namespace AllplanBimplusDemo.UserControls
                                     }
                                 }
                             };
-                            connection.ConnectionElement.Children.Add(opening);
+                            dtoConnection.ConnectionElement.Children.Add(opening);
                         }
                     }
 
@@ -1096,8 +1183,8 @@ namespace AllplanBimplusDemo.UserControls
                         ; // TODO create Weld objects
                     }
 
-                    connection = _integrationBase.ApiCore.DtoConnection.CreateConnection(model.ProjectId, connection);
-                    if (connection == null || connection.Id == Guid.Empty)
+                    dtoConnection = _integrationBase.ApiCore.DtoConnection.CreateConnection(model.ProjectId, dtoConnection);
+                    if (dtoConnection == null || dtoConnection.Id == Guid.Empty)
                         MessageBoxHelper.ShowInformation("DtoConnections could not be generated.", _parentWindow);
                 }
 
@@ -1116,18 +1203,6 @@ namespace AllplanBimplusDemo.UserControls
             }
         }
 
-    private void RunIdeaStatiCaCCM_Click(object sender, RoutedEventArgs e)
-    {
-      IdeaController.RunIdeaStaticaCCM(null);
+        #endregion button events
     }
-
-    #endregion button events
-
-    private void RunIdeaStatiCaCCM_Copy_Click(object sender, RoutedEventArgs e)
-    {
-      Debug.Fail("Set the correct id of the node (connection)");
-      int connectioId = 1;
-      var res = IdeaController.GetConnectionModel(connectioId);
-    }
-  }
 }

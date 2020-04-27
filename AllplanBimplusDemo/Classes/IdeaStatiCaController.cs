@@ -60,31 +60,45 @@ namespace AllplanBimplusDemo.Classes
       FeaAppHosting.RunAsync(id, ideaStatiCaProjectDir);
     }
 
-    public ConnectionData GetConnectionModel(int connectionId)
-    {
-      if (FeaAppHosting == null)
-      {
-        return null;
-      }
+        public ConnectionData GetConnectionModel(out int connectionId)
+        {
+            connectionId = 0;
+            if (FeaAppHosting == null)
+            {
+                return null;
+            }
 
-      var bimAppliction = (ApplicationBIM)FeaAppHosting.Service;
-      if(bimAppliction == null)
-      {
-        Debug.Fail("Can not cast to ApplicationBIM");
-        return null;
-      }
+            var bimAppliction = (IdeaCCM)FeaAppHosting.Service;
+            if (bimAppliction == null)
+            {
+                Debug.Fail("Can not cast to ApplicationBIM");
+                return null;
+            }
 
-      ConnectionData connectionData = null;
-      int myProcessId = bimAppliction.Id;
+            if (bimAppliction.SelectedNode == null)
+            {
+                MessageBoxHelper.ShowInformation("please select a PointConnection object to identify the Import connection", null);
+                return null;
+            }
 
-      using (IdeaStatiCaAppClient ideaStatiCaApp = new IdeaStatiCaAppClient(myProcessId.ToString()))
-      {
-        ideaStatiCaApp.Open();
-        connectionData = ideaStatiCaApp.GetConnectionModel(connectionId);
-      }
-        
-      return connectionData;
-    }
+            if (!bimAppliction.SelectedNode.NodeId.HasValue)
+            {
+                MessageBoxHelper.ShowInformation("selected node has no valid Id", null);
+                return null;
+            }
+
+            ConnectionData connectionData = null;
+            int myProcessId = bimAppliction.Id;
+
+            using (IdeaStatiCaAppClient ideaStatiCaApp = new IdeaStatiCaAppClient(myProcessId.ToString()))
+            {
+                connectionId = bimAppliction.SelectedNode.NodeId.Value;
+                ideaStatiCaApp.Open();
+                connectionData = ideaStatiCaApp.GetConnectionModel(connectionId);
+            }
+
+            return connectionData;
+        }
 
 		private void IdeaStaticAppStatusChanged(object sender, ISEventArgs e)
 		{

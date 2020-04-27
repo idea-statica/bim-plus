@@ -223,6 +223,10 @@ namespace AllplanBimplusDemo.Classes
             }
         }
 
+        public StructuralPointConnection SelectedNode => _selectedObjects.OfType<StructuralPointConnection>().FirstOrDefault();
+        
+        public List<StructuralCurveMember> SelectedElements => _selectedObjects.OfType<StructuralCurveMember>().ToList();
+
         protected override ModelBIM ImportActive(CountryCode countryCode, RequestedItemsType requestedType)
         {
             try
@@ -335,11 +339,11 @@ namespace AllplanBimplusDemo.Classes
                         materials.Add(matName, material);
                     }
 
-                    var crossSection = element.GetStringProperty(TableNames.contentAttributes, CrossSectionAttributeId) ?? "HE200B";
+                    var crossSection = element.GetStringProperty(TableNames.contentAttributes, CrossSectionAttributeId) ?? "HE200";
+                    crossSection = crossSection.Replace("HE200B", "HEB200");
+                    crossSection = crossSection.Replace("HE240B", "HEB240");
                     if (!crossSections.ContainsKey(crossSection))
                     {
-                        crossSection = crossSection.Replace("HE200B", "HEB200");
-                        crossSection = crossSection.Replace("HE240B", "HEB240");
                         CrossSectionParameter css = new CrossSectionParameter
                         {
                             Id = ccsId++,
@@ -461,7 +465,8 @@ namespace AllplanBimplusDemo.Classes
                     BeamData beamData = new BeamData
                     {
                         Id = member1d.Id,
-                        OriginalModelId = member1d.Id.ToString(),
+                        Name = element1d.Name,
+                        OriginalModelId = member1d.Id.ToString(), // member1d.Name,
                         IsAdded = false,
                         MirrorY = false,
                         RefLineInCenterOfGravity = true,
