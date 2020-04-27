@@ -982,7 +982,7 @@ namespace AllplanBimplusDemo.UserControls
             ButtonsEnabled = true;
         }
 
-        private void CreateConnections(DtoDivision model, List<ConnectionData> connections, int? eraseOnlyExisting = null)
+        private void CreateConnections(DtoDivision model, List<ConnectionData> connections, int? connectionId = null)
         {
             try
             {
@@ -998,12 +998,17 @@ namespace AllplanBimplusDemo.UserControls
                     return;
                 }
 
-                var dtoConnections = _integrationBase.ApiCore.DtObjects.GetObjects<ProjectConnection>(model.ProjectId);
-                if (dtoConnections != null && dtoConnections.Count > 0)
+                // delete existing connections?
+                var r = MessageBoxHelper.ShowQuestion("Would you like to delete existing connections?", MessageBoxResult.Yes, _parentWindow);
+                if (r == true)
                 {
-                    foreach (var con in dtoConnections)
+                    var dtoConnections = _integrationBase.ApiCore.DtObjects.GetObjects<ProjectConnection>(model.ProjectId);
+                    if (dtoConnections != null && dtoConnections.Count > 0)
                     {
-                        _integrationBase.ApiCore.DtoConnection.DeleteConnections(con.Id);
+                        foreach (var con in dtoConnections)
+                        {
+                            _integrationBase.ApiCore.DtoConnection.DeleteConnections(con.Id);
+                        }
                     }
                 }
 
@@ -1036,6 +1041,20 @@ namespace AllplanBimplusDemo.UserControls
                         return;
 
                     }
+                    double globalX = 0;
+                    double globalY = 0;
+                    double globalZ = 0;
+                    if (connectionId.HasValue)
+                    {
+                        var node = _integrationBase.ApiCore.DtObjects.GetObjects<StructuralPointConnection>(
+                            model.TopologyDivisionId.GetValueOrDefault(), false, false, true)?.FirstOrDefault(x => x.NodeId == connectionId.Value);
+                        if (node != null)
+                        {
+                            globalX = node.X.GetValueOrDefault();
+                            globalY = node.Y.GetValueOrDefault();
+                            globalZ = node.Z.GetValueOrDefault();
+                        }
+                    }
 
                     DtoConnections dtoConnection = new DtoConnections
                     {
@@ -1052,7 +1071,7 @@ namespace AllplanBimplusDemo.UserControls
                         var plate = new SteelPlate
                         {
                             Name = p.Name,
-                            Parent = connectionIds[1], // TODO: p.OriginalModelId
+                            Parent = dtoConnection.ElementIds[0],  //connectionIds[1], // TODO: p.OriginalModelId
                             Division = model.Id,
                             LogParentID = model.ProjectId,
                             CsgTree = new DtoCsgTree
@@ -1091,28 +1110,50 @@ namespace AllplanBimplusDemo.UserControls
                         };
                         // OuterContour
                         var items = p.Region.Split(' ');
-                        for (int i = 0; i < items.Length; i += 3)
+                        // Example with ',' as delimiter
+                        if (items[0].Length > 1)
                         {
-                            double x = double.Parse(items[i + 1], CultureInfo.InvariantCulture) * 1000F;
-                            double y = double.Parse(items[i + 2], CultureInfo.InvariantCulture) * 1000F;
-                            if (items[i] == "M")
-                                plate.CsgTree.Elements[1].Geometry.Add(new StartPolygon { Point = new List<double> { x, y } });
-                            else if (items[i] == "L")
-                                plate.CsgTree.Elements[1].Geometry.Add(new Line { Point = new List<double> { x, y } });
-                        }
+                            foreach(var section in items)
+                            {
+                                char order = section[0];
+                                var coords = section.Remove(0, 1).Split(',');
+                                if (coords?.Length == 2)
+                                {
+                                    double x = double.Parse(coords[0], CultureInfo.InvariantCulture) * 1000F;
+                                    double y = double.Parse(coords[1], CultureInfo.InvariantCulture) * 1000F;
+                                    if (order == 'M')
+                                        plate.CsgTree.Elements[1].Geometry.Add(new StartPolygon { Point = new List<double> { x, y } });
+                                    else if (order == 'L')
+                                        plate.CsgTree.Elements[1].Geometry.Add(new Line { Point = new List<double> { x, y } });
+                                }
 
+                            }
+                        }
+                        // Example with spaces as delimiter
+                        else
+                        {
+                            for (int i = 0; i < items.Length; i += 3)
+                            {
+                                double x = double.Parse(items[i + 1], CultureInfo.InvariantCulture) * 1000F;
+                                double y = double.Parse(items[i + 2], CultureInfo.InvariantCulture) * 1000F;
+                                if (items[i] == "M")
+                                    plate.CsgTree.Elements[1].Geometry.Add(new StartPolygon { Point = new List<double> { x, y } });
+                                else if (items[i] == "L")
+                                    plate.CsgTree.Elements[1].Geometry.Add(new Line { Point = new List<double> { x, y } });
+                            }
+                        }
                         plate.Matrix = new TmpMatrix
                         {
                             Values = new[]
                             {
-                                p.AxisX.X, p.AxisX.Y, p.AxisX.Z, p.Origin.X * 1000F,
-                                p.AxisY.X, p.AxisY.Y, p.AxisY.Z, p.Origin.Y * 1000F,
-                                p.AxisZ.X, p.AxisZ.Y, p.AxisZ.Z, p.Origin.Z * 1000F,
+                                p.AxisX.X, p.AxisX.Y, p.AxisX.Z, (p.Origin.X + globalX) * 1000F,
+                                p.AxisY.X, p.AxisY.Y, p.AxisY.Z, (p.Origin.Y + globalY) * 1000F,
+                                p.AxisZ.X, p.AxisZ.Y, p.AxisZ.Z, (p.Origin.Z + globalZ) * 1000F,
                                 0F, 0F, 0F, 1F
                             }
                         };
 
-                        plate.AddProperty(TableNames.tabAttribConstObjInstObj, "ConnectionChild-Element", connectionIds[3]);
+                        plate.AddProperty(TableNames.tabAttribConstObjInstObj, "ConnectionChild-Element", dtoConnection.ElementIds[0]);
 
                         dtoConnection.ConnectionElement.Children.Add(plate);
                     }
@@ -1124,7 +1165,7 @@ namespace AllplanBimplusDemo.UserControls
                             var fastener = new MechanicalFastener
                             {
                                 Name = bGrid.Standard,
-                                Parent = connectionIds[1], // TODO: check assembly
+                                Parent = dtoConnection.ElementIds[0], // TODO: check assembly
                                 Division = model.Id,
                                 LogParentID = _integrationBase.CurrentProject.Id,
                                 Template = boltTemplateId,
@@ -1132,9 +1173,9 @@ namespace AllplanBimplusDemo.UserControls
                                 {
                                     Values = new[]
                                     {
-                                        bGrid.AxisX.X, bGrid.AxisX.Y, bGrid.AxisX.Z, bolt.X * 1000F,
-                                        bGrid.AxisY.X, bGrid.AxisY.Y, bGrid.AxisY.Z, bolt.Y * 1000F,
-                                        bGrid.AxisZ.X, bGrid.AxisZ.Y, bGrid.AxisZ.Z, bolt.Z * 1000F,
+                                        bGrid.AxisX.X, bGrid.AxisX.Y, bGrid.AxisX.Z, (bolt.X + globalX) * 1000F,
+                                        bGrid.AxisY.X, bGrid.AxisY.Y, bGrid.AxisY.Z, (bolt.Y + globalY) * 1000F,
+                                        bGrid.AxisZ.X, bGrid.AxisZ.Y, bGrid.AxisZ.Z, (bolt.Z + globalZ) * 1000F,
                                         0F, 0F, 0F, 1F
                                     }
                                 }
@@ -1145,7 +1186,7 @@ namespace AllplanBimplusDemo.UserControls
                             var opening = new Opening
                             {
                                 Name = bGrid.Standard,
-                                Parent = connectionIds[1], // TODO: check assembly
+                                Parent = dtoConnection.ElementIds[0], // TODO: check assembly
                                 Division = model.Id,
                                 LogParentID = _integrationBase.CurrentProject.Id,
                                 CsgTree = new DtoCsgTree
@@ -1192,7 +1233,7 @@ namespace AllplanBimplusDemo.UserControls
             catch (Exception exception)
             {
                 Console.WriteLine(exception);
-                throw;
+                return ;
             }
             finally
             {
