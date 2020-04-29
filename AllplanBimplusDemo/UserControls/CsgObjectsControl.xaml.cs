@@ -15,7 +15,6 @@ using BimPlus.Sdk.Data.DbCore.Steel;
 using BimPlus.Sdk.Data.DbCore.Structure;
 using BimPlus.Sdk.Data.Geometry;
 using BimPlus.Sdk.Data.GeometryTemplates;
-using BimPlus.Sdk.Data.DbCore.Connection;
 using BimPlus.Sdk.Data.StructuralLoadResource;
 using BimPlus.Sdk.Data.TenantDto;
 using IdeaRS.OpenModel;
@@ -35,6 +34,9 @@ using System.Globalization;
 using System.Linq;
 using System.Windows;
 using WPFWindows = System.Windows;
+using CI.Geometry2D;
+using CI.GiCL2D;
+using CI.Mathematics;
 
 // ReSharper disable IdentifierTypo
 // ReSharper disable RedundantExtendsListEntry
@@ -982,6 +984,17 @@ namespace AllplanBimplusDemo.UserControls
             ButtonsEnabled = true;
         }
 
+        private static CI.Geometry3D.Vector3D CreateFromLCS(Vector3D axisX, Vector3D axisY, Vector3D axisZ, out double rotation)
+        {
+            rotation = -Math.PI / 2;
+            CI.Geometry3D.Matrix44 matrix = new CI.Geometry3D.Matrix44(new CI.Geometry3D.Vector3D(axisX.X, axisX.Y, axisX.Z),
+                                                                        new CI.Geometry3D.Vector3D(axisY.X, axisY.Y, axisY.Z),
+                                                                        new CI.Geometry3D.Vector3D(axisZ.X, axisZ.Y, axisZ.Z));
+
+
+            return matrix.TransformToGCS(new CI.Geometry3D.Vector3D(1, 0, 0));
+        }
+
         private void CreateConnections(DtoDivision model, List<ConnectionData> connections, int? connectionId = null)
         {
             try
@@ -999,14 +1012,14 @@ namespace AllplanBimplusDemo.UserControls
                 }
 
                 // delete existing connections?
-                var r = MessageBoxHelper.ShowQuestion("Would you like to delete existing connections?", MessageBoxResult.Yes, _parentWindow);
+                var r = true; // MessageBoxHelper.ShowQuestion("Would you like to delete existing connections?", MessageBoxResult.Yes, _parentWindow);
                 if (r == true)
                 {
                     var dtoConnections = _integrationBase.ApiCore.DtObjects.GetObjects<ProjectConnection>(model.ProjectId);
                     if (dtoConnections != null && dtoConnections.Count > 0)
                     {
                         foreach (var con in dtoConnections)
-                        {
+                        {   
                             _integrationBase.ApiCore.DtoConnection.DeleteConnections(con.Id);
                         }
                     }
@@ -1014,6 +1027,7 @@ namespace AllplanBimplusDemo.UserControls
 
                 foreach (var idCon in connections)
                 {
+                    var jIdCon = Newtonsoft.Json.JsonConvert.SerializeObject(idCon);
                     // mappingTable between IdeaStatica.Id and BimPlus.Id
                     Dictionary<int, Guid> connectionIds = new Dictionary<int, Guid>();
                     foreach (var b in idCon.Beams)
@@ -1058,16 +1072,18 @@ namespace AllplanBimplusDemo.UserControls
 
                     DtoConnections dtoConnection = new DtoConnections
                     {
-                        ElementIds = connectionIds.Values.ToList(),
+                        ElementIds = connectionIds.Values.Distinct().ToList(),
                         ConnectionElement = new ConnectionElement
                         {
-                            Name = "IdeaStatica_Connection",
+                            Name = $"IdeaStatica_Connection{connectionId.GetValueOrDefault()}",
                             Children = new List<DtObject>()
                         }
                     };
 
                     foreach (var p in idCon.Plates)
                     {
+                        double rotation = -Math.PI / 2;
+                        var direction = CreateFromLCS(p.AxisX, p.AxisY, p.AxisZ, out rotation);
                         var plate = new SteelPlate
                         {
                             Name = p.Name,
@@ -1081,29 +1097,21 @@ namespace AllplanBimplusDemo.UserControls
                                 {
                                     new Path
                                     {
-                                        Rotation = -Math.PI/2,
+                                        Rotation = rotation, //-Math.PI/2,
                                         Geometry = new List<CsgGeoElement>(2)
                                         {
                                             new StartPolygon
                                             {
-                                                Point =new List<double>{p.Thickness * 1000F * (-0.5 * p.AxisX.X),
-                                                                       p.Thickness * 1000F * (-0.5 * p.AxisX.Y),
-                                                                       p.Thickness * 1000F * (-0.5 * p.AxisX.Z)}
+                                                Point = new List<double>{ p.Thickness * 1000F * (-0.5 *direction.DirectionX),
+                                                                          p.Thickness * 1000F * (-0.5 *direction.DirectionY),
+                                                                          p.Thickness * 1000F * (-0.5 *direction.DirectionZ)}
                                             },
                                             new Line
                                             {
-                                                Point =new List<double>{p.Thickness * 1000F *  0.5 * p.AxisX.X,
-                                                                       p.Thickness * 1000F * 0.5 * p.AxisX.Y,
-                                                                       p.Thickness * 1000F * 0.5 * p.AxisX.Z
+                                                Point = new List<double>{ p.Thickness * 1000F * 0.5 *direction.DirectionX,
+                                                                          p.Thickness * 1000F * 0.5 *direction.DirectionY,
+                                                                          p.Thickness * 1000F * 0.5 *direction.DirectionZ}
 
-                                                //Point = (p.Name == "P1") // TODO: check direction of Path
-                                                //    ? new List<double>{p.Thickness * 1000F * p.AxisX.X,
-                                                //                       p.Thickness * 1000F * p.AxisX.Y,
-                                                //                       p.Thickness * 1000F * p.AxisX.Z}
-                                                //    : new List<double>{p.Thickness * 1000F * p.AxisZ.X,
-                                                //                       p.Thickness * 1000F * p.AxisZ.Y,
-                                                //                       p.Thickness * 1000F * p.AxisZ.Z
-                                                }
                                             }
                                         }
                                     },
@@ -1177,11 +1185,19 @@ namespace AllplanBimplusDemo.UserControls
                                 Template = boltTemplateId,
                                 Matrix = new TmpMatrix
                                 {
-                                    Values = new[]
+                                    Values = (connectionId.HasValue) 
+                                    ? new[]
                                     {
-                                        bGrid.AxisZ.X, bGrid.AxisZ.Y, bGrid.AxisZ.Z, (bolt.Z + globalX) * 1000F,
+                                        bGrid.AxisX.X, bGrid.AxisX.Y, bGrid.AxisX.Z, (bolt.Z + bGrid.Origin.X + globalX) * 1000F,
+                                        bGrid.AxisY.X, bGrid.AxisY.Y, bGrid.AxisY.Z, (bolt.X + bGrid.Origin.Y + globalY) * 1000F,
+                                        bGrid.AxisZ.X, bGrid.AxisZ.Y, bGrid.AxisZ.Z, (bolt.Y + bGrid.Origin.Z +globalZ) * 1000F,
+                                        0F, 0F, 0F, 1F
+                                    }  
+                                    : new[]
+                                    {
+                                        bGrid.AxisX.X, bGrid.AxisX.Y, bGrid.AxisX.Z, (bolt.X + globalX) * 1000F,
                                         bGrid.AxisY.X, bGrid.AxisY.Y, bGrid.AxisY.Z, (bolt.Y + globalY) * 1000F,
-                                        bGrid.AxisX.X, bGrid.AxisX.Y, bGrid.AxisX.Z, (bolt.X + globalZ) * 1000F,
+                                        bGrid.AxisZ.X, bGrid.AxisZ.Y, bGrid.AxisZ.Z, (bolt.Z + globalZ) * 1000F,
                                         0F, 0F, 0F, 1F
                                     }
                                 }
@@ -1204,7 +1220,7 @@ namespace AllplanBimplusDemo.UserControls
                                             Geometry = new List<CsgGeoElement>
                                             {
                                                 new StartPolygon {Point = new List<double> {0, 0, 0}},
-                                                new Line {Point = new List<double> { 100F * bGrid.AxisZ.X, 100F * bGrid.AxisZ.Y, 100F * bGrid.AxisZ.Z}}
+                                                new Line {Point = new List<double> { 100F * bGrid.AxisX.X, 100F * bGrid.AxisX.Y, 100F * bGrid.AxisX.Z}}
                                             },
                                             CrossSection = "RD16"
                                         }
