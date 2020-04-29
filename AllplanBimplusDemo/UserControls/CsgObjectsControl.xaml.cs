@@ -1088,7 +1088,7 @@ namespace AllplanBimplusDemo.UserControls
                                             {
                                                 Point =new List<double>{p.Thickness * 1000F * (-0.5 * p.AxisX.X),
                                                                        p.Thickness * 1000F * (-0.5 * p.AxisX.Y),
-                                                                       p.Thickness * 1000F * (-0.5 * p.AxisX.Z) }
+                                                                       p.Thickness * 1000F * (-0.5 * p.AxisX.Z)}
                                             },
                                             new Line
                                             {
@@ -1179,9 +1179,9 @@ namespace AllplanBimplusDemo.UserControls
                                 {
                                     Values = new[]
                                     {
-                                        bGrid.AxisX.X, bGrid.AxisX.Y, bGrid.AxisX.Z, (bolt.X + globalX) * 1000F,
+                                        bGrid.AxisZ.X, bGrid.AxisZ.Y, bGrid.AxisZ.Z, (bolt.Z + globalX) * 1000F,
                                         bGrid.AxisY.X, bGrid.AxisY.Y, bGrid.AxisY.Z, (bolt.Y + globalY) * 1000F,
-                                        bGrid.AxisZ.X, bGrid.AxisZ.Y, bGrid.AxisZ.Z, (bolt.Z + globalZ) * 1000F,
+                                        bGrid.AxisX.X, bGrid.AxisX.Y, bGrid.AxisX.Z, (bolt.X + globalZ) * 1000F,
                                         0F, 0F, 0F, 1F
                                     }
                                 }
@@ -1204,7 +1204,7 @@ namespace AllplanBimplusDemo.UserControls
                                             Geometry = new List<CsgGeoElement>
                                             {
                                                 new StartPolygon {Point = new List<double> {0, 0, 0}},
-                                                new Line {Point = new List<double> { 100F * bGrid.AxisX.X, 100F * bGrid.AxisX.Y, 100F * bGrid.AxisX.Z}}
+                                                new Line {Point = new List<double> { 100F * bGrid.AxisZ.X, 100F * bGrid.AxisZ.Y, 100F * bGrid.AxisZ.Z}}
                                             },
                                             CrossSection = "RD16"
                                         }
