@@ -1086,17 +1086,23 @@ namespace AllplanBimplusDemo.UserControls
                                         {
                                             new StartPolygon
                                             {
-                                                Point = new List<double>{0, 0, 0}
+                                                Point =new List<double>{p.Thickness * 1000F * (-0.5 * p.AxisX.X),
+                                                                       p.Thickness * 1000F * (-0.5 * p.AxisX.Y),
+                                                                       p.Thickness * 1000F * (-0.5 * p.AxisX.Z) }
                                             },
                                             new Line
                                             {
-                                                Point = (p.Name == "P1") // TODO: check direction of Path
-                                                    ? new List<double>{p.Thickness * 1000F * p.AxisX.X,
-                                                                       p.Thickness * 1000F * p.AxisX.Y,
-                                                                       p.Thickness * 1000F * p.AxisX.Z}
-                                                    : new List<double>{p.Thickness * 1000F * p.AxisZ.X,
-                                                                       p.Thickness * 1000F * p.AxisZ.Y,
-                                                                       p.Thickness * 1000F * p.AxisZ.Z
+                                                Point =new List<double>{p.Thickness * 1000F *  0.5 * p.AxisX.X,
+                                                                       p.Thickness * 1000F * 0.5 * p.AxisX.Y,
+                                                                       p.Thickness * 1000F * 0.5 * p.AxisX.Z
+
+                                                //Point = (p.Name == "P1") // TODO: check direction of Path
+                                                //    ? new List<double>{p.Thickness * 1000F * p.AxisX.X,
+                                                //                       p.Thickness * 1000F * p.AxisX.Y,
+                                                //                       p.Thickness * 1000F * p.AxisX.Z}
+                                                //    : new List<double>{p.Thickness * 1000F * p.AxisZ.X,
+                                                //                       p.Thickness * 1000F * p.AxisZ.Y,
+                                                //                       p.Thickness * 1000F * p.AxisZ.Z
                                                 }
                                             }
                                         }
