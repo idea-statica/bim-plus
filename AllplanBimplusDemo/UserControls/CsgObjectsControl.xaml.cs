@@ -986,14 +986,17 @@ namespace AllplanBimplusDemo.UserControls
 
         private static CI.Geometry3D.Vector3D CreateFromLCS(Vector3D axisX, Vector3D axisY, Vector3D axisZ, out double rotation)
         {
-            rotation = -Math.PI / 2;
-            CI.Geometry3D.Matrix44 matrix = new CI.Geometry3D.Matrix44(new CI.Geometry3D.Vector3D(axisX.X, axisX.Y, axisX.Z),
-                                                                        new CI.Geometry3D.Vector3D(axisY.X, axisY.Y, axisY.Z),
-                                                                        new CI.Geometry3D.Vector3D(axisZ.X, axisZ.Y, axisZ.Z));
+          //rotation = -Math.PI / 2;
+          //CI.Geometry3D.Matrix44 matrix = new CI.Geometry3D.Matrix44(new CI.Geometry3D.Vector3D(axisX.X, axisX.Y, axisX.Z),
+          //                                                            new CI.Geometry3D.Vector3D(axisY.X, axisY.Y, axisY.Z),
+          //                                                            new CI.Geometry3D.Vector3D(axisZ.X, axisZ.Y, axisZ.Z));
 
 
-            return matrix.TransformToGCS(new CI.Geometry3D.Vector3D(1, 0, 0));
-        }
+          //return matrix.TransformToGCS(new CI.Geometry3D.Vector3D(1, 0, 0));
+          rotation = 0;
+          return new CI.Geometry3D.Vector3D(axisZ.X, axisZ.Y, axisZ.Z);
+          //return new CI.Geometry3D.Vector3D(0, 0, 1);
+    }
 
         private void CreateConnections(DtoDivision model, List<ConnectionData> connections, int? connectionId = null)
         {
@@ -1158,12 +1161,20 @@ namespace AllplanBimplusDemo.UserControls
                         }
                         plate.Matrix = new TmpMatrix
                         {
-                            Values = new[]
+                          //Values = new[]
+                          //{
+                          //    p.AxisX.X, p.AxisX.Y, p.AxisX.Z, (p.Origin.X + globalX) * 1000F,
+                          //    p.AxisY.X, p.AxisY.Y, p.AxisY.Z, (p.Origin.Y + globalY) * 1000F,
+                          //    p.AxisZ.X, p.AxisZ.Y, p.AxisZ.Z, (p.Origin.Z + globalZ) * 1000F,
+                          //    0F, 0F, 0F, 1F
+                          //}
+
+                          Values = new[]
                             {
-                                p.AxisX.X, p.AxisX.Y, p.AxisX.Z, (p.Origin.X + globalX) * 1000F,
-                                p.AxisY.X, p.AxisY.Y, p.AxisY.Z, (p.Origin.Y + globalY) * 1000F,
-                                p.AxisZ.X, p.AxisZ.Y, p.AxisZ.Z, (p.Origin.Z + globalZ) * 1000F,
-                                0F, 0F, 0F, 1F
+                                1D, 0D, 0D, p.Origin.X * 1000D,
+                                0D, 1D, 0D, p.Origin.Y * 1000D,
+                                0D, 0D, 1D, p.Origin.Z * 1000D,
+                                0D, 0D, 0D, 1D
                             }
                         };
 
