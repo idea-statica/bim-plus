@@ -37,6 +37,7 @@ using WPFWindows = System.Windows;
 using CI.Geometry2D;
 using CI.GiCL2D;
 using CI.Mathematics;
+using IdeaRS.Connections.Commands;
 
 // ReSharper disable IdentifierTypo
 // ReSharper disable RedundantExtendsListEntry
@@ -986,14 +987,33 @@ namespace AllplanBimplusDemo.UserControls
 
         private static CI.Geometry3D.Vector3D CreateFromLCS(Vector3D axisX, Vector3D axisY, Vector3D axisZ, out double rotation)
         {
-          //rotation = -Math.PI / 2;
-          //CI.Geometry3D.Matrix44 matrix = new CI.Geometry3D.Matrix44(new CI.Geometry3D.Vector3D(axisX.X, axisX.Y, axisX.Z),
-          //                                                            new CI.Geometry3D.Vector3D(axisY.X, axisY.Y, axisY.Z),
-          //                                                            new CI.Geometry3D.Vector3D(axisZ.X, axisZ.Y, axisZ.Z));
+      //rotation = -Math.PI / 2;
+      //CI.Geometry3D.Matrix44 matrix = new CI.Geometry3D.Matrix44(new CI.Geometry3D.Vector3D(axisX.X, axisX.Y, axisX.Z),
+      //                                                            new CI.Geometry3D.Vector3D(axisY.X, axisY.Y, axisY.Z),
+      //                                                            new CI.Geometry3D.Vector3D(axisZ.X, axisZ.Y, axisZ.Z));
 
 
-          //return matrix.TransformToGCS(new CI.Geometry3D.Vector3D(1, 0, 0));
-          rotation = 0;
+      //return matrix.TransformToGCS(new CI.Geometry3D.Vector3D(1, 0, 0));
+          double beta, gamma, betaEnd, gammaEnd;
+
+      
+          GeometryTools.GetDirVectorAngles(new System.Windows.Media.Media3D.Vector3D(axisZ.X, axisZ.Y, axisZ.Z), false, false, out beta, out gamma, out betaEnd, out gammaEnd);
+
+          var notRotadedMatrix = new CI.Geometry3D.Matrix44();
+          if (!gamma.IsZero())
+          {
+            // gamma pitch
+            notRotadedMatrix.Rotate(gamma, new CI.Geometry3D.Vector3D(0, 1, 0));
+          }
+
+          if (!beta.IsZero())
+          {
+            // beta direction
+            notRotadedMatrix.Rotate(beta, new CI.Geometry3D.Vector3D(0, 0, 1));
+          }
+
+          rotation = CI.Geometry3D.GeomOperation.GetClockwiseAngle(notRotadedMatrix.AxisY, new CI.Geometry3D.Vector3D(axisY.X, axisY.Y, axisY.Z), notRotadedMatrix.AxisX) - Math.PI / 2;
+
           return new CI.Geometry3D.Vector3D(axisZ.X, axisZ.Y, axisZ.Z);
           //return new CI.Geometry3D.Vector3D(0, 0, 1);
     }
@@ -1171,9 +1191,9 @@ namespace AllplanBimplusDemo.UserControls
 
                           Values = new[]
                             {
-                                1D, 0D, 0D, p.Origin.X * 1000D,
-                                0D, 1D, 0D, p.Origin.Y * 1000D,
-                                0D, 0D, 1D, p.Origin.Z * 1000D,
+                                1D, 0D, 0D, (p.Origin.X + globalX) * 1000D,
+                                0D, 1D, 0D, (p.Origin.Y + globalY) * 1000D,
+                                0D, 0D, 1D, (p.Origin.Z + globalZ) * 1000D,
                                 0D, 0D, 0D, 1D
                             }
                         };

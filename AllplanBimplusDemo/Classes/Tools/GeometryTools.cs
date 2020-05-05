@@ -1,6 +1,7 @@
 ﻿using CI;
 using CI.Geometry2D;
 using CI.Geometry3D;
+using CI.Mathematics;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,6 +12,130 @@ namespace IdeaRS.Connections.Commands
 {
 	public static class GeometryTools
 	{
+		public static void GetDirVectorAngles(WM.Vector3D dirVector, bool IsContinuous, bool isInside, out double beta, out double gamma, out double betaFromEnd, out double gammaFromEnd)
+		{
+			beta = 0;
+			gamma = 0;
+			betaFromEnd = 0;
+			gammaFromEnd = 0;
+
+			bool isZeroX = dirVector.X.IsZero();
+			bool isZeroY = dirVector.Y.IsZero();
+			bool isZeroZ = dirVector.Z.IsZero();
+
+			if (isZeroX && isZeroY)
+			{
+				// parallel to global Z
+				if (dirVector.Z.IsGreater(0))
+				{
+					gamma = -MathConstants.PI_2;
+					if (IsContinuous && !isInside)
+					{
+						gamma = MathConstants.PI_2;
+					}
+				}
+				else
+				{
+					gamma = MathConstants.PI_2;
+					if (IsContinuous && !isInside)
+					{
+						gamma = -MathConstants.PI_2;
+					}
+				}
+			}
+			else
+			{
+				if (isZeroY)
+				{
+					// parallel to global X
+					if (IsContinuous && !isInside)
+					{
+						if (dirVector.X.IsGreater(0))
+						{
+							beta = MathConstants.PI;
+							betaFromEnd = MathConstants.PI;
+						}
+						else
+						{
+							beta = 0;// MathConstants.PI;
+							betaFromEnd = 0;// MathConstants.PI;
+						}
+					}
+					else
+					{
+						if (dirVector.X.IsGreater(0))
+						{
+							beta = 0;
+							betaFromEnd = 0;
+						}
+						else
+						{
+							beta = MathConstants.PI;
+							betaFromEnd = MathConstants.PI;
+						}
+					}
+
+					if (IsContinuous && !isInside)
+					{
+						gamma = Math.Atan2(dirVector.Z, Math.Abs(dirVector.X));
+						gammaFromEnd = gamma;
+					}
+					else
+					{
+						gamma = -Math.Atan2(dirVector.Z, Math.Abs(dirVector.X));
+						gammaFromEnd = gamma;
+
+					}
+				}
+				else if (isZeroX)
+				{
+					// parallel to global X
+					if (IsContinuous && !isInside)
+					{
+						if (dirVector.Y.IsGreater(0))
+						{
+							beta = MathConstants.PI_2;
+							betaFromEnd = MathConstants.PI_2;
+						}
+						else
+						{
+							beta = -MathConstants.PI_2;
+							betaFromEnd = -MathConstants.PI_2;
+						}
+					}
+					else
+					{
+						if (dirVector.Y.IsGreater(0))
+						{
+							beta = MathConstants.PI_2;
+							betaFromEnd = MathConstants.PI_2;
+						}
+						else
+						{
+							beta = -MathConstants.PI_2;
+							betaFromEnd = -MathConstants.PI_2;
+						}
+					}
+
+					gamma = -Math.Atan2(dirVector.Z, Math.Abs(dirVector.Y));
+					gammaFromEnd = -Math.Atan2(dirVector.Z, Math.Abs(dirVector.Y));
+				}
+				else
+				{
+					// parallel to no axis
+					if (IsContinuous && !isInside)
+					{
+						dirVector.Negate();
+					}
+					beta = Math.Atan2(dirVector.Y, dirVector.X);
+					betaFromEnd = beta;
+					double lenInXY = Math.Sqrt(dirVector.Y * dirVector.Y + dirVector.X * dirVector.X);
+					gamma = -Math.Atan2(dirVector.Z, lenInXY);
+					gammaFromEnd = gamma;
+				}
+			}
+		}
+
 		/// <summary>
 		/// Transforms given polyline 3D to LCS using matrix and converts to 2D geometry.
 		/// </summary>
