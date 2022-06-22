@@ -356,7 +356,7 @@
       <Version>21.1.0.3267</Version>
     </PackageReference>
     <PackageReference Include="Newtonsoft.Json">
-      <Version>12.0.3</Version>
+      <Version>13.0.1</Version>
     </PackageReference>
   </ItemGroup>
   <Import Project="..\IdeaStatiCa.Codes\IdeaStatiCa.Codes.projitems" Label="Shared" />
